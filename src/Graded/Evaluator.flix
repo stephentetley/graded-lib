@@ -54,8 +54,8 @@ namespace Graded {
 namespace Graded/Evaluator {
 
 
-    use Graded.Evaluator;
-    use Graded.Evaluator.{Evaluator};
+    use Graded.Evaluator
+    use Graded.Evaluator.{Evaluator}
 
 
     def apply1(ma: Evaluator[ka, st, ef, a], 
@@ -63,6 +63,8 @@ namespace Graded/Evaluator {
                 k: a -> Result[ka, String] \ ef): Result[ka, String] \ ef =
         let Evaluator(ma1) = ma;
         ma1(s, k)
+
+
 
     ///
     /// Returns the result of applying `ma` to the state `s`.
