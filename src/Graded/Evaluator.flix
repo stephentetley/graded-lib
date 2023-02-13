@@ -30,7 +30,7 @@ namespace Graded {
     /// `ka` is the continuation answer type
     ///
     pub enum Evaluator[ka: Type, st: Type, ef: Bool, a: Type](
-        st -> (a -> Result[ka, String] \ ef) -> Result[ka, String] \ ef)
+        st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
 
     instance GradedFunctor[Evaluator[ka, st]] { 
         pub def gmap(f: a -> b \ ef, x: Evaluator[ka, st, ef1, a]): Evaluator[ka, st, ef1 and ef, b] = 
@@ -60,41 +60,43 @@ namespace Graded/Evaluator {
 
     def apply1(ma: Evaluator[ka, st, ef, a], 
                 s: st, 
-                k: a -> Result[ka, String] \ ef): Result[ka, String] \ ef =
+                k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let Evaluator(ma1) = ma;
         ma1(s, k)
 
-
+    def liftEff(_: Unit -> Unit \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
+        unsafe_cast ma as Evaluator[ka, st, ef and ef1, a]
 
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runEvaluator(ma: Evaluator[a, st, ef, a], 
-                         s: st): Result[a, String] \ ef =
+                         s: st): Result[String, a] \ ef =
         let Evaluator(f) = ma;
-        let cont = a -> unsafe_cast Ok(a) as _ \ ef;
+        let cont = upcast(a -> Ok(a));
         f(s, cont)
 
 
     pub def point(x: a): Evaluator[ka, st, ef, a] = Evaluator((_, k) -> k(x))
 
+
     pub def map(f: a -> b \ ef, ma: Evaluator[ka, st, ef1, a]): Evaluator[ka, st, ef1 and ef, b] =
         Evaluator((s, k) ->
-            apply1(unsafe_cast ma as Evaluator[ka, st, ef1 and ef, a], s, a -> let b = f(a); k(b))
+            apply1(liftEff(upcast(identity), ma), s, a -> {let b = f(a); k(b)})
         )
 
     pub def ap(mf: Evaluator[ka, st, ef1, a -> b \ ef], ma: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2 and ef, b] =
         Evaluator((s, k) ->
-            apply1(unsafe_cast mf as Evaluator[ka, st, ef1 and ef2 and ef, a -> b], s, f1 ->
-                apply1(unsafe_cast ma as Evaluator[ka, st, ef1 and ef2 and ef, a], s, a1 ->
+            apply1(liftEff(upcast(identity), mf), s, f1 ->
+                apply1(liftEff(upcast(identity),  ma), s, a1 ->
                     k(f1(a1))))
         )
 
 
     pub def flatMap(f: a -> Evaluator[ka, st, ef1, b] \ ef, ma: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2 and ef, b] =
         Evaluator((s, k) ->
-            apply1(unsafe_cast ma as Evaluator[ka, st, ef1 and ef2 and ef, a], s, a ->
-                apply1(unsafe_cast f(a) as Evaluator[ka, st, ef1 and ef2 and ef, b], s, b ->
+            apply1(liftEff(upcast(identity), ma), s, a ->
+                apply1(liftEff(upcast(identity), f(a)), s, b ->
                     k(b)))
         )
 
