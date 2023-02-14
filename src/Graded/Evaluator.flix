@@ -49,6 +49,17 @@ namespace Graded {
             Graded/Evaluator.flatMap(k, x)
     }
 
+    // Orelse available for Evaluator because it is expected to only be reading the state
+
+    instance GradedOr[Evaluator[ka, st]] { 
+        pub def orelse(ma: Evaluator[ka, st, ef1, a], mb: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2, a] =
+            Graded/Evaluator.orelse(ma, mb)
+    }
+
+    instance GradedZero[Evaluator[ka, st]] { 
+        pub def empty(): Evaluator[ka, st, ef, a] = Graded/Evaluator.empty()
+    }
+
 }
 
 namespace Graded/Evaluator {
@@ -63,6 +74,17 @@ namespace Graded/Evaluator {
                 k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let Evaluator(ma1) = ma;
         ma1(s, k)
+
+
+    def apply1WithHandler(ma: Evaluator[ka, st, ef, a], 
+                            s: st, 
+                            k: a -> Result[String, ka] \ ef, 
+                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
+        let Evaluator(ma1) = ma;
+        match ma1(s, k) {
+            case Err(msg) => handleK(msg)
+            case Ok(a)    => Ok(a)
+        }
 
     def liftEff(_: Unit -> Unit \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
         unsafe_cast ma as Evaluator[ka, st, ef and ef1, a]
@@ -99,5 +121,18 @@ namespace Graded/Evaluator {
                 apply1(liftEff(upcast(identity), f(a)), s, b ->
                     k(b)))
         )
+
+
+    pub def orelse(ma: Evaluator[ka, st, ef1, a], mb: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2, a] =
+        Evaluator((s, k) ->
+            apply1WithHandler(liftEff(upcast(identity), ma), s, a -> k(a), _ -> apply1(liftEff(upcast(identity), mb), s, b -> k(b)))
+        )
+
+
+    pub def empty(): Evaluator[ka, st, ef, a] = 
+        throwError("empty")
+
+    pub def throwError(msg: String): Evaluator[ka, st, ef, a] = 
+        liftEff(upcast(identity), Evaluator((_, _) -> Err(msg)))
 
 }
