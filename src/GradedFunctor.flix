@@ -15,7 +15,7 @@
  */
 
 pub class GradedFunctor[m: Bool -> Type -> Type] {
-    pub def map(f: a -> b \ ef, x: m[ef1, a]): m[ef1 and ef, b]
+    pub def map(f: a -> b \ ef1, x: m[ef, a]): m[ef and ef1, b]
 }
 
 

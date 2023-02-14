@@ -60,6 +60,18 @@ namespace Graded {
         pub def empty(): Evaluator[ka, st, ef, a] = Graded/Evaluator.empty()
     }
 
+    instance GradedError[Evaluator[ka, st]] { 
+        pub def throwError(msg: String): Evaluator[ka, st, ef, a] =
+            Graded/Evaluator.throwError(msg)
+
+        pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
+            Graded/Evaluator.mapError(f, ma)
+
+        pub def catchError(ma: Evaluator[ka, st, ef, a], hdlr: String -> Evaluator[ka, st, ef1, a] \ ef2): Evaluator[ka, st, ef and ef1 and ef2, a]= 
+            Graded/Evaluator.catchError(ma, hdlr)
+    }  
+
+
 }
 
 namespace Graded/Evaluator {
@@ -89,13 +101,20 @@ namespace Graded/Evaluator {
     def liftEff(_: Unit -> Unit \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
         unsafe_cast ma as Evaluator[ka, st, ef and ef1, a]
 
+    def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef): a -> b \ {ef, ef1} = a ->
+        unsafe_cast f(a) as b \ {ef, ef1}
+
+    // def liftVal(_: Unit -> Unit \ ef, x: a): a \ ef = 
+    //     unsafe_cast x as a \ ef
+
+
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runEvaluator(ma: Evaluator[a, st, ef, a], 
                          s: st): Result[String, a] \ ef =
         let Evaluator(f) = ma;
-        let cont = upcast(a -> Ok(a));
+        let cont = liftApp(upcast(identity), a -> Ok(a));
         f(s, cont)
 
 
@@ -134,5 +153,25 @@ namespace Graded/Evaluator {
 
     pub def throwError(msg: String): Evaluator[ka, st, ef, a] = 
         liftEff(upcast(identity), Evaluator((_, _) -> Err(msg)))
+
+    pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a]= 
+        Evaluator((s, k) -> 
+            apply1WithHandler(liftEff(upcast(identity), ma), s, a -> k(a), liftApp(upcast(identity), msg -> Err(f(msg))))
+        )
+
+
+    pub def catchError(ma: Evaluator[ka, st, ef, a], 
+                        hdlr: String -> Evaluator[ka, st, ef1, a] \ ef2): Evaluator[ka, st, ef and ef1 and ef2, a] = 
+        Evaluator((s, k) -> 
+            let Evaluator(ma1) = liftEff(upcast(identity), ma);
+            match ma1(s, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => { 
+                    let Evaluator(hdlr1) = liftEff(upcast(identity), hdlr(msg)); 
+                    hdlr1(s, k)
+                }
+            }
+        )
+    
 
 }
