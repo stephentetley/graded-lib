@@ -15,7 +15,7 @@
  */
 
 pub class GradedFunctor[m: Bool -> Type -> Type] {
-    pub def gmap(f: a -> b \ ef, x: m[ef1, a]): m[ef1 and ef, b]
+    pub def map(f: a -> b \ ef, x: m[ef1, a]): m[ef1 and ef, b]
 }
 
 
@@ -25,13 +25,13 @@ namespace GradedFunctor {
     /// Lifts the function `f` into the graded functor.
     ///
     pub def lift[a: Type, b: Type, ef: Bool, ef1: Bool, m: Bool -> Type -> Type]
-                (f: a -> b \ ef, ma: m[ef1, a]): m[ef1 and ef, b] with GradedFunctor[m] = GradedFunctor.gmap(f, ma)
+                (f: a -> b \ ef, ma: m[ef1, a]): m[ef1 and ef, b] with GradedFunctor[m] = GradedFunctor.map(f, ma)
 
     ///
     /// Replaces the value `a` in `ma` by the given value `x` preserving the structure of `ma`.
     ///
     pub def as[a: Type, b: Type, ef: Bool, m: Bool -> Type -> Type]
-              (ma: m[ef, a], x: b): m[ef, b] with GradedFunctor[m] = GradedFunctor.gmap(_ -> x, ma)
+              (ma: m[ef, a], x: b): m[ef, b] with GradedFunctor[m] = GradedFunctor.map(_ -> x, ma)
 
     ///
     /// Replaces the value `a` in `ma` with `Unit` preserving the structure of `ma`.
@@ -46,13 +46,13 @@ namespace GradedFunctor {
     /// `<$>` is an operator alias for `gmap`.
     ///
     pub def <$>[a: Type, b: Type, ef: Bool, ef1: Bool, m: Bool -> Type -> Type]
-               (f: a -> b \ ef1, x: m[ef, a]): m[ef and ef1, b] with GradedFunctor[m] = GradedFunctor.gmap(f, x)
+               (f: a -> b \ ef1, x: m[ef, a]): m[ef and ef1, b] with GradedFunctor[m] = GradedFunctor.map(f, x)
 
     ///
     /// `<$$>` is the operator `<$>` with its arguments flipped.
     ///
     pub def <$$>[a: Type, b: Type, ef: Bool, ef1: Bool, m: Bool -> Type -> Type]
-                (x: m[ef, a], f: a -> b \ ef1): m[ef and ef1, b] with GradedFunctor[m] = GradedFunctor.gmap(f, x)
+                (x: m[ef, a], f: a -> b \ ef1): m[ef and ef1, b] with GradedFunctor[m] = GradedFunctor.map(f, x)
 
     ///
     /// `<$` is an operator alias for `as`.

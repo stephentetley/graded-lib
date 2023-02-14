@@ -33,10 +33,10 @@ namespace GradedOr {
 
     pub def optional[a: Type, ef: Bool, m: Bool -> Type -> Type]
                     (ma: m[ef, a]): m[ef, Option[a]] with GradedOr[m] = 
-        orelse(Some <$> ma, GradedApplicative.gpoint(None))
+        orelse(Some <$> ma, GradedApplicative.point(None))
 
     pub def withDefault[a: Type, ef: Bool, m: Bool -> Type -> Type]
                        (d: a, x: m[ef, a]): m[ef, a] with GradedOr[m] =
-        orelse(x, GradedApplicative.gpoint(d))
+        orelse(x, GradedApplicative.point(d))
 
 }

@@ -19,40 +19,40 @@ pub class GradedApplicative[m: Bool -> Type -> Type] with GradedFunctor[m] {
     ///
     /// Lifts `x` into the graded applicative context.
     ///    
-    pub def gpoint(x: a): m[true, a]
+    pub def point(x: a): m[true, a]
 
     ///
     /// Apply the function-type graded applicative `f` to the argument-type graded applicative `x`.
     ///
-    pub def gap(f: m[ef1, a -> b \ ef], x: m[ef2, a]): m[ef1 and ef2 and ef, b]
+    pub def ap(f: m[ef1, a -> b \ ef], x: m[ef2, a]): m[ef1 and ef2 and ef, b]
 
     ///
     /// Lift a binary function to work on graded applicatives.
     /// Instances can define more efficient implementations than the default implementation.
     ///
-    pub def gliftA2(f: t1 -> t2 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2]): m[ef1 and ef2 and ef, a] = 
-        GradedApplicative.gap(GradedFunctor.gmap(f, x1), x2)
+    pub def liftA2(f: t1 -> t2 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2]): m[ef1 and ef2 and ef, a] = 
+        GradedApplicative.ap(GradedFunctor.map(f, x1), x2)
 
     ///
     /// Lift a ternary function to work on graded applicatives.
     /// Instances can define more efficient implementations than the default implementation.
     ///
-    pub def gliftA3(f: t1 -> t2 -> t3 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3]): m[ef1 and ef2 and ef3 and ef, a] = 
-        GradedApplicative.gap(GradedApplicative.gliftA2(f, x1, x2), x3)
+    pub def liftA3(f: t1 -> t2 -> t3 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3]): m[ef1 and ef2 and ef3 and ef, a] = 
+        GradedApplicative.ap(GradedApplicative.liftA2(f, x1, x2), x3)
 
     ///
     /// Lift a 4-ary function to work on graded applicatives.
     /// Instances can define more efficient implementations than the default implementation
     ///
-    pub def gliftA4(f: t1 -> t2 -> t3 -> t4 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3], x4: m[ef4, t4]): m[ef1 and ef2 and ef3 and ef4 and ef, a] = 
-        GradedApplicative.gap(GradedApplicative.gliftA3(f, x1, x2, x3), x4)
+    pub def liftA4(f: t1 -> t2 -> t3 -> t4 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3], x4: m[ef4, t4]): m[ef1 and ef2 and ef3 and ef4 and ef, a] = 
+        GradedApplicative.ap(GradedApplicative.liftA3(f, x1, x2, x3), x4)
 
     ///
     /// Lift a 5-ary function to work on graded applicatives.
     /// Instances can define more efficient implementations than the default implementation
     ///
-    pub def gliftA5(f: t1 -> t2 -> t3 -> t4 -> t5 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3], x4: m[ef4, t4], x5: m[ef5, t5]): m[ef1 and ef2 and ef3 and ef4 and ef5 and ef, a] = 
-        GradedApplicative.gap(GradedApplicative.gliftA4(f, x1, x2, x3, x4), x5)
+    pub def liftA5(f: t1 -> t2 -> t3 -> t4 -> t5 -> a \ ef, x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3], x4: m[ef4, t4], x5: m[ef5, t5]): m[ef1 and ef2 and ef3 and ef4 and ef5 and ef, a] = 
+        GradedApplicative.ap(GradedApplicative.liftA4(f, x1, x2, x3, x4), x5)
 
 
 
@@ -66,50 +66,50 @@ namespace GradedApplicative {
     ///
     pub def product[a: Type, b: Type, ef1: Bool, ef2: Bool, m: Bool -> Type -> Type]
                    (fa: m[ef1, a], fb: m[ef2, b]): m[ef1 and ef2, (a, b)] with GradedApplicative[m] =
-        GradedApplicative.gliftA2((a, b) -> (a, b), fa, fb)
+        GradedApplicative.liftA2((a, b) -> (a, b), fa, fb)
 
     ///
     /// Chain two graded applicative actions, return only the result of the first.
     ///
     pub def productLeft[a: Type, b: Type, ef1: Bool, ef2: Bool, m: Bool -> Type -> Type]
                        (fa: m[ef1, a], fb: m[ef2, b]): m[ef1 and ef2, a] with GradedApplicative[m] =
-        GradedApplicative.gliftA2((a, _) -> a, fa, fb)
+        GradedApplicative.liftA2((a, _) -> a, fa, fb)
 
     ///
     /// Chain two graded applicative actions, return only the result of the second.
     ///
     pub def productRight[a: Type, b: Type, ef1: Bool, ef2: Bool, m: Bool -> Type -> Type]
                         (fa: m[ef1, a], fb: m[ef2, b]): m[ef1 and ef2, b] with GradedApplicative[m] =
-        GradedApplicative.gliftA2((_, b) -> b, fa, fb)
+        GradedApplicative.liftA2((_, b) -> b, fa, fb)
 
     ///
     /// Chain three graded applicative actions, return the 3-tuple of their results.
     ///
     pub def product3[t1: Type, t2: Type, t3: Type, ef1: Bool, ef2: Bool, ef3: Bool, m: Bool -> Type -> Type]
                     (x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3]): m[ef1 and ef2 and ef3, (t1, t2, t3)] with GradedApplicative[m] =
-        GradedApplicative.gliftA3((a, b, c) -> (a, b, c), x1, x2, x3)
+        GradedApplicative.liftA3((a, b, c) -> (a, b, c), x1, x2, x3)
 
     ///
     /// Chain four graded applicative actions, return the 4-tuple of their results.
     ///
     pub def product4[t1: Type, t2: Type, t3: Type, t4: Type, ef1: Bool, ef2: Bool, ef3: Bool, ef4: Bool, m: Bool -> Type -> Type]
                     (x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3], x4: m[ef4, t4]): m[ef1 and ef2 and ef3 and ef4, (t1, t2, t3, t4)] with GradedApplicative[m] =
-        GradedApplicative.gliftA4((a, b, c, d) -> (a, b, c, d), x1, x2, x3, x4)
+        GradedApplicative.liftA4((a, b, c, d) -> (a, b, c, d), x1, x2, x3, x4)
 
     ///
     /// Chain five graded applicative actions, return the 5-tuple of their results.
     ///
     pub def product5[t1: Type, t2: Type, t3: Type, t4: Type, t5: Type, ef1: Bool, ef2: Bool, ef3: Bool, ef4: Bool, ef5: Bool, m: Bool -> Type -> Type]
                     (x1: m[ef1, t1], x2: m[ef2, t2], x3: m[ef3, t3], x4: m[ef4, t4], x5: m[ef5, t5]): m[ef1 and ef2 and ef3 and ef4 and ef5, (t1, t2, t3, t4, t5)] with GradedApplicative[m] =
-        GradedApplicative.gliftA5((a, b, c, d, e) -> (a, b, c, d, e), x1, x2, x3, x4, x5)
+        GradedApplicative.liftA5((a, b, c, d, e) -> (a, b, c, d, e), x1, x2, x3, x4, x5)
 
 
     ///
-    /// `<*>` is an operator alias for `gap`.
+    /// `<*>` is an operator alias for `ap`.
     ///
     pub def <*>[a: Type, b: Type, ef1: Bool, ef2: Bool, ef: Bool, m: Bool -> Type -> Type]
                (mf: m[ef1, a -> b \ ef], ma: m[ef2, a]): m[ef1 and ef2 and ef, b] with GradedApplicative[m] = 
-        GradedApplicative.gap(mf, ma)
+        GradedApplicative.ap(mf, ma)
 
     ///
     /// `<**>` is a variant of the operator `<*>` with its arguments flipped.
@@ -118,7 +118,7 @@ namespace GradedApplicative {
     ///
     pub def <**>[a: Type, b: Type, ef1: Bool, ef2: Bool, ef: Bool, m: Bool -> Type -> Type]
                 (ma: m[ef1, a], mf: m[ef2, a -> b \ ef]): m[ef1 and ef2 and ef, b] with GradedApplicative[m] = 
-        GradedApplicative.gliftA2((a, f) -> f(a), ma, mf)
+        GradedApplicative.liftA2((a, f) -> f(a), ma, mf)
 
     ///
     /// `<*` is an operator alias for `productLeft`.

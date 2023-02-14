@@ -33,19 +33,19 @@ namespace Graded {
         st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
 
     instance GradedFunctor[Evaluator[ka, st]] { 
-        pub def gmap(f: a -> b \ ef, x: Evaluator[ka, st, ef1, a]): Evaluator[ka, st, ef1 and ef, b] = 
+        pub def map(f: a -> b \ ef, x: Evaluator[ka, st, ef1, a]): Evaluator[ka, st, ef1 and ef, b] = 
             Graded/Evaluator.map(f, x)
     }
 
     instance GradedApplicative[Evaluator[ka, st]] { 
-        pub def gpoint(x: a): Evaluator[ka, st, true, a] = Graded/Evaluator.point(x)
+        pub def point(x: a): Evaluator[ka, st, true, a] = Graded/Evaluator.point(x)
 
-        pub def gap(f: Evaluator[ka, st, ef1, a -> b \ ef], x: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2 and ef, b] = 
+        pub def ap(f: Evaluator[ka, st, ef1, a -> b \ ef], x: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2 and ef, b] = 
             Graded/Evaluator.ap(f, x)
     }
 
     instance GradedMonad[Evaluator[ka, st]] { 
-        pub def gflatMap(k: a -> Evaluator[ka, st, ef1, b] \ ef, x: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2 and ef, b] = 
+        pub def flatMap(k: a -> Evaluator[ka, st, ef1, b] \ ef, x: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2 and ef, b] = 
             Graded/Evaluator.flatMap(k, x)
     }
 

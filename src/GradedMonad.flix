@@ -19,10 +19,8 @@ pub class GradedMonad[m: Bool -> Type -> Type] with GradedApplicative[m] {
     ///
     /// Apply function `f` to the graded monadic value `x`, resulting in a combined graded monadic value.
     ///
-    pub def gflatMap(f: a -> m[ef1, b] \ ef, x: m[ef2, a]): m[ef1 and ef2 and ef, b]
+    pub def flatMap(f: a -> m[ef1, b] \ ef, x: m[ef2, a]): m[ef1 and ef2 and ef, b]
 
-    // /// Temp?
-    // pub def captureEff(f: a -> m[ef1, b] \ ef, x: a): m[ef1 and ef, b] 
 
 }
 
@@ -36,7 +34,7 @@ namespace GradedMonad {
     /// Flatten `x` - a graded monadic action nested in an outer graded monadic layer - to a single layer.
     ///
     pub def flatten[a: Type, ef1: Bool, ef2: Bool, m: Bool -> Type -> Type]
-                   (x: m[ef1, m[ef2, a]]): m[ef1 and ef2, a] with GradedMonad[m] = GradedMonad.gflatMap(identity, x)
+                   (x: m[ef1, m[ef2, a]]): m[ef1 and ef2, a] with GradedMonad[m] = GradedMonad.flatMap(identity, x)
 
     ///
     /// The left-to-right Kleisli composition operator for graded monads.
@@ -45,7 +43,7 @@ namespace GradedMonad {
     ///
     pub def kleisliLeft[a: Type, b: Type, c: Type, ef1: Bool, ef2: Bool, ef3: Bool, ef4: Bool, m: Bool -> Type -> Type]
                       (f1: a -> m[ef1, b] \ ef3, f2: b -> m[ef2, c] \ ef4, x: a): m[ef1 and ef2 and ef3 and ef4, c] with GradedMonad[m] =
-        GradedMonad.gflatMap(x1 -> f2(x1), GradedMonad.gflatMap(f1, GradedApplicative.gpoint(x)))
+        GradedMonad.flatMap(x1 -> f2(x1), GradedMonad.flatMap(f1, GradedApplicative.point(x)))
 
     ///
     /// The right-to-left Kleisli composition operator for graded monads.
@@ -54,14 +52,14 @@ namespace GradedMonad {
     ///
     pub def kleisliRight[a: Type, b: Type, c: Type, ef1: Bool, ef2: Bool, ef3: Bool, ef4: Bool, m: Bool -> Type -> Type]
                         (f1: b -> m[ef2, c] \ ef4, f2: a -> m[ef1, b] \ ef3, x: a): m[ef1 and ef2 and ef3 and ef4, c] with GradedMonad[m] =
-        GradedMonad.gflatMap(x1 -> f1(x1), GradedMonad.gflatMap(f2, GradedApplicative.gpoint(x)))
+        GradedMonad.flatMap(x1 -> f1(x1), GradedMonad.flatMap(f2, GradedApplicative.point(x)))
 
     ///
     /// `=<<` is an operator alias for `flatMap`.
     ///
     pub def =<<[a: Type, b: Type, ef1: Bool, ef2: Bool, ef: Bool, m: Bool -> Type -> Type]
                (k: a -> m[ef1, b] \ ef, x: m[ef2, a]): m[ef1 and ef2 and ef, b] with GradedMonad[m] = 
-        GradedMonad.gflatMap(k, x)
+        GradedMonad.flatMap(k, x)
 
     ///
     /// `>>=` is the operator `=<<` with its arguments flipped.
@@ -70,7 +68,7 @@ namespace GradedMonad {
     ///
     pub def >>=[a: Type, b: Type, ef1: Bool, ef2: Bool, ef: Bool, m: Bool -> Type -> Type]
                (x: m[ef1, a], k: a -> m[ef2, b] \ ef): m[ef1 and ef2 and ef, b] with GradedMonad[m] = 
-        GradedMonad.gflatMap(k, x)
+        GradedMonad.flatMap(k, x)
 
 
 }
