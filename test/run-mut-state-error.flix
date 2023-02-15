@@ -1,4 +1,4 @@
-// java -jar ..\bin\flix-master.jar .\test\run-evaluator.flix .\src\*.flix .\src\Graded\*.flix
+// java -jar ..\bin\flix-master.jar .\test\run-mut-state-error.flix .\src\*.flix .\src\Graded\*.flix
 
 pub def main(): Int32 \ IO = 
     println("run-graded-error...");
@@ -11,16 +11,16 @@ pub def main(): Int32 \ IO =
 pub def test01(): Unit \ IO = 
     use GradedApplicative.{point};
     println("test01");
-    Graded/Evaluator.runEvaluator(point(5), 0) |> println
+    Graded/MutStateError.runMutStateError(point(5), 0) |> println
 
 pub def test02(): Unit \ IO = 
     use GradedApplicative.{point};
     use GradedError.{catchError, throwError};
     println("test02");
-    Graded/Evaluator.runEvaluator(catchError(throwError("blowup"), _msg -> point(1000)), 0) |> println    
+    Graded/MutStateError.runMutStateError(catchError(throwError("blowup"), _msg -> point(1000)), 0) |> println    
 
 pub def test03(): Unit \ IO = 
     use GradedApplicative.{point};
     use GradedError.{throwError};
     println("test03");
-    Graded/Evaluator.runEvaluator(GradedApplicative.productRight(throwError("blowup"), point(5)), 0) |> println
+    Graded/MutStateError.runMutStateError(GradedApplicative.productRight(throwError("blowup"), point(5)), 0) |> println
