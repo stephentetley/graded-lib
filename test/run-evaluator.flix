@@ -1,4 +1,4 @@
-// java -jar ..\bin\flix-master.jar .\test\run-graded-error.flix .\src\*.flix .\src\Graded\*.flix
+// java -jar ..\bin\flix-master.jar .\test\run-evaluator.flix .\src\*.flix .\src\Graded\*.flix
 
 pub def main(): Int32 \ IO = 
     println("run-graded-error...");

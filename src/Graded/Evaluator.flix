@@ -98,12 +98,22 @@ namespace Graded/Evaluator {
             case Ok(a)    => Ok(a)
         }
 
+    ///
+    /// The first arg is just a proxy - we can use `upcast(identity)` to have it filled in 
+    /// by the typechecker.
+    /// Ideally we would want something like `liftApp(@ \ ef, getMessage, ex))` - a macro rather than 
+    /// a function where we can supply an effect type as the first argument.
+    ///
     def liftEff(_: Unit -> Unit \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
         unsafe_cast ma as Evaluator[ka, st, ef and ef1, a]
 
-    def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef): a -> b \ {ef, ef1} = a ->
-        unsafe_cast f(a) as b \ {ef, ef1}
+    /// As per liftEff...
+    def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef, x: a): b \ {ef, ef1} =
+        unsafe_cast f(x) as b \ {ef, ef1}
 
+    
+    /// Although we can define `liftVal` we should try to avoid it as effects are only a matter for 
+    /// function types...
     // def liftVal(_: Unit -> Unit \ ef, x: a): a \ ef = 
     //     unsafe_cast x as a \ ef
 
@@ -114,7 +124,7 @@ namespace Graded/Evaluator {
     pub def runEvaluator(ma: Evaluator[a, st, ef, a], 
                          s: st): Result[String, a] \ ef =
         let Evaluator(f) = ma;
-        let cont = liftApp(upcast(identity), a -> Ok(a));
+        let cont = ans -> liftApp(upcast(identity), Ok, ans);
         f(s, cont)
 
 
@@ -172,6 +182,41 @@ namespace Graded/Evaluator {
                 }
             }
         )
-    
+
+    /// ideally something like > Err(liftApp(@ \ ef, getMessage, ex)) 
+    pub def liftGetter(f: st -> a \ ef): Evaluator[ka, st, ef, a] = 
+        Evaluator((s, k) ->
+            try {
+                let ans = f(s);
+                k(ans)
+            } catch {
+                case ex: ##java.lang.Exception => 
+                    import java.lang.Throwable.getMessage(): String \ {};
+                    Err(liftApp(upcast(identity), getMessage, ex))
+            }            
+        )
+
+    // f should not throw an exception
+    pub def liftGetterResult(f: st -> Result[e, a] \ ef): Evaluator[ka, st, ef, a] with ToString[e] = 
+        Evaluator((s, k) ->
+            match f(s) { 
+                case Ok(a)  => k(a)
+                case Err(e) => Err(ToString.toString(e))
+            } 
+        )
+
+    pub def liftAction(f: Unit -> a \ ef): Evaluator[ka, st, ef, a] = 
+        Evaluator((_, k) ->
+            let a = f();
+            k(a)
+        )
+
+    pub def liftActionResult(f: Unit -> Result[e, a] \ ef): Evaluator[ka, st, ef, a] with ToString[e] = 
+        Evaluator((_, k) ->
+            match f() {
+                case Ok(a)  => k(a)
+                case Err(e) => Err(ToString.toString(e))
+            }
+        )
 
 }
