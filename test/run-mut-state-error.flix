@@ -1,7 +1,7 @@
 // java -jar ..\bin\flix-master.jar .\test\run-mut-state-error.flix .\src\*.flix .\src\Graded\*.flix
 
 pub def main(): Int32 \ IO = 
-    println("run-graded-error...");
+    println("run-mut-state-error...");
     test01();
     test02();
     test03();

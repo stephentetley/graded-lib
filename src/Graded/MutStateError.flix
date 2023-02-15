@@ -33,14 +33,14 @@ namespace Graded {
         st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
 
     instance GradedFunctor[MutStateError[ka, st]] { 
-        pub def map(f: a -> b \ ef, x: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef1 and ef, b] = 
+        pub def map(f: a -> b \ ef1, x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, b] = 
             Graded/MutStateError.map(f, x)
     }
 
     instance GradedApplicative[MutStateError[ka, st]] { 
         pub def point(x: a): MutStateError[ka, st, true, a] = Graded/MutStateError.point(x)
 
-        pub def ap(f: MutStateError[ka, st, ef1, a -> b \ ef], x: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 and ef2 and ef, b] = 
+        pub def ap(f: MutStateError[ka, st, ef1, a -> b \ ef2], x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] = 
             Graded/MutStateError.ap(f, x)
     }
 
@@ -136,7 +136,7 @@ namespace Graded/MutStateError {
             apply1(liftEff(upcast(identity), ma), s, a -> {let b = f(a); k(b)})
         )
 
-    pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef], ma: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 and ef2 and ef, b] =
+    pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef2], ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] =
         MutStateError((s, k) ->
             apply1(liftEff(upcast(identity), mf), s, f1 ->
                 apply1(liftEff(upcast(identity),  ma), s, a1 ->
@@ -162,7 +162,7 @@ namespace Graded/MutStateError {
         throwError("empty")
 
     pub def throwError(msg: String): MutStateError[ka, st, ef, a] = 
-        liftEff(upcast(identity), MutStateError((_, _) -> Err(msg)))
+        MutStateError((_, _) -> liftApp(upcast(identity), Err, msg))
 
     pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a]= 
         MutStateError((s, k) -> 
