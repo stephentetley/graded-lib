@@ -67,7 +67,7 @@ namespace Graded {
         pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a] = 
             Graded/MutStateError.mapError(f, ma)
 
-        pub def catchError(ma: MutStateError[ka, st, ef, a], hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a]= 
+        pub def catchError(ma: MutStateError[ka, st, ef, a], hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
             Graded/MutStateError.catchError(ma, hdlr)
     }  
 
