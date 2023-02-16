@@ -17,13 +17,17 @@
 namespace Graded {
 
     ///
-    /// State is expected to be unchanged for the extent of an evaluation, 
-    /// but it may be mutated outside the MutStateError monad. A `ResultSet` in 
-    /// the JDBC library is a typical example. This has operations on the current
-    /// row (`getString`, `getTime`, etc.) but also cursor level operations 
-    /// to change to another row. A MutStateError monad for a ResultSet would only provide 
-    /// the row operations and be expected to run for every row in a traversal
-    /// of the results.
+    /// Note - in some cases State is expected to be unchanged for the extent of an 
+    /// evaluation, but it may be mutated outside the MutStateError monad. A `ResultSet` 
+    /// in the JDBC library is a typical example. This has operations on the current
+    /// row (`getString`, `getTime`, etc.) but also cursor level operations to change 
+    /// to another row. A MutStateError monad for a ResultSet would only provide the 
+    /// row operations and be expected to run for every row in a traversal of the 
+    /// results.
+    /// 
+    /// In such cases wrap `MutStateError` and do not expose `liftSetter`.
+    ///
+
     ///
     /// The MutStateError monad is in the codensity style to be stack safe.
     /// 
@@ -204,6 +208,28 @@ namespace Graded/MutStateError {
                 case Err(e) => Err(ToString.toString(e))
             } 
         )
+
+    pub def liftSetter!(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
+        MutStateError((s, k) ->
+            try {
+                let a = f(s); 
+                k(a)
+            } catch {
+                case ex: ##java.lang.Exception => 
+                    import java.lang.Throwable.getMessage(): String \ {};
+                    Err(getMessage(ex))
+            }            
+        )
+
+    // f should not throw an exception
+    pub def liftSetterResult!(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
+        MutStateError((s, k) ->
+            match f(s) {
+                case Ok(a)    => k(a)
+                case Err(err) => Err(ToString.toString(err))
+            } 
+        )
+
 
     pub def liftAction(f: Unit -> a \ ef): MutStateError[ka, st, ef, a] = 
         MutStateError((_, k) ->
