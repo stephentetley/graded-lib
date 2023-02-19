@@ -28,3 +28,27 @@ pub class GradedError[m: Bool -> Type -> Type] with GradedMonad[m] {
     pub def catchError(m: m[ef, a], hdl: String -> m[ef1, a] \ ef2): m[ef and ef1 and ef2, a]
 
 }
+
+namespace GradedError {
+
+    use GradedApplicative.point;
+    
+
+    pub def swapError[m: Bool -> Type -> Type, ef: Bool, a: Type]
+                        (msg: String, ma: m[ef, a]): m[ef, a] with GradedError[m] = 
+        GradedError.mapError(_ -> msg, ma)
+
+    pub def liftOption[m: Bool -> Type -> Type, err: Type, a: Type]
+                        (e: err, x: Option[a]): m[Pure, a] with GradedError[m], ToString[err] = match x { 
+        case Some(x1) => point(x1)
+        case None     => GradedError.throwError(ToString.toString(e))
+    }
+
+    pub def liftResult[m: Bool -> Type -> Type, err: Type, a: Type]
+                        (x: Result[err, a]): m[Pure, a] with GradedError[m], ToString[err] = match x { 
+        case Ok(x1)   => point(x1)
+        case Err(msg) => GradedError.throwError(ToString.toString(msg))
+    }
+
+}
+
