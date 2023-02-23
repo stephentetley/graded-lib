@@ -22,16 +22,10 @@ pub class GradedFunctor[m: Bool -> Type -> Type] {
 namespace GradedFunctor {
 
     ///
-    /// Lifts the function `f` into the graded functor.
-    ///
-    pub def lift[a: Type, b: Type, ef: Bool, ef1: Bool, m: Bool -> Type -> Type]
-                (f: a -> b \ ef, ma: m[ef1, a]): m[ef1 and ef, b] with GradedFunctor[m] = GradedFunctor.map(f, ma)
-
-    ///
     /// Replaces the value `a` in `ma` by the given value `x` preserving the structure of `ma`.
     ///
-    pub def as[a: Type, b: Type, ef: Bool, m: Bool -> Type -> Type]
-              (ma: m[ef, a], x: b): m[ef, b] with GradedFunctor[m] = GradedFunctor.map(_ -> x, ma)
+    pub def replace[a: Type, b: Type, ef: Bool, m: Bool -> Type -> Type]
+                    (ma: m[ef, a], x: b): m[ef, b] with GradedFunctor[m] = GradedFunctor.map(_ -> x, ma)
 
     ///
     /// Replaces the value `a` in `ma` with `Unit` preserving the structure of `ma`.
@@ -39,7 +33,7 @@ namespace GradedFunctor {
     /// This function is typically used to discard the return value of computing `ma`.
     ///
     pub def ignore[a: Type, ef: Bool, m: Bool -> Type -> Type]
-                  (ma: m[ef, a]): m[ef, Unit] with GradedFunctor[m] = as(ma, ())
+                  (ma: m[ef, a]): m[ef, Unit] with GradedFunctor[m] = replace(ma, ())
 
 
     ///
@@ -55,16 +49,16 @@ namespace GradedFunctor {
                 (x: m[ef, a], f: a -> b \ ef1): m[ef and ef1, b] with GradedFunctor[m] = GradedFunctor.map(f, x)
 
     ///
-    /// `<$` is an operator alias for `as`.
-    ///
-    pub def <$[a: Type, b: Type, ef: Bool, m: Bool -> Type -> Type]
-              (x: a, ma: m[ef, b]): m[ef, a] with GradedFunctor[m] = as(ma, x)
-
-    ///
     /// `<$` is the operator `$>` with its arguments flipped.
     ///
+    pub def <$[a: Type, b: Type, ef: Bool, m: Bool -> Type -> Type]
+              (x: a, ma: m[ef, b]): m[ef, a] with GradedFunctor[m] = replace(ma, x)
+
+    ///
+    /// `$>` is an operator alias for `replace`.
+    ///
     pub def $>[a: Type, b: Type, ef: Bool, m: Bool -> Type -> Type]
-              (ma: m[ef, a], x: b): m[ef, b] with GradedFunctor[m] = as(ma, x)
+              (ma: m[ef, a], x: b): m[ef, b] with GradedFunctor[m] = replace(ma, x)
 
 
 }
