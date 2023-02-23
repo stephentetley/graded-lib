@@ -19,7 +19,7 @@ pub class GradedApplicative[m: Bool -> Type -> Type] with GradedFunctor[m] {
     ///
     /// Lifts `x` into the graded applicative context.
     ///    
-    pub def point(x: a): m[true, a]
+    pub def point(x: a): m[ef, a]
 
     ///
     /// Apply the function-type graded applicative `f` to the argument-type graded applicative `x`.

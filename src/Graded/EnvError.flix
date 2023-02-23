@@ -31,7 +31,7 @@ namespace Graded {
     }
 
     instance GradedApplicative[EnvError[ka, env]] { 
-        pub def point(x: a): EnvError[ka, env, true, a] = 
+        pub def point(x: a): EnvError[ka, env, ef, a] = 
             Graded/EnvError.point(x)
 
         pub def ap(f: EnvError[ka, env, ef1, a -> b \ ef2], m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] = 

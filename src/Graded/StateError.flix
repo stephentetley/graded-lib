@@ -30,7 +30,7 @@ namespace Graded {
     }
 
     instance GradedApplicative[StateError[ka, st]] { 
-        pub def point(x: a): StateError[ka, st, true, a] = Graded/StateError.point(x)
+        pub def point(x: a): StateError[ka, st, ef, a] = Graded/StateError.point(x)
 
         pub def ap(f: StateError[ka, st, ef1, a -> b \ ef2], m: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1 and ef2, b] = 
             Graded/StateError.ap(f, m)
@@ -111,7 +111,8 @@ namespace Graded/StateError {
         let cont = (a, s1) -> liftApp(upcast(identity), Ok, (s1, a));
         f(s, cont)
 
-    pub def point(x: a): StateError[ka, st, ef, a] = StateError((s, k) -> k(x, s))
+    pub def point(x: a): StateError[ka, st, ef, a] = 
+        StateError((s, k) -> k(x, s))
 
     pub def map(f: a -> b \ ef, ma: StateError[ka, st, ef1, a]): StateError[ka, st, ef1 and ef, b] =
         StateError((s, k) ->

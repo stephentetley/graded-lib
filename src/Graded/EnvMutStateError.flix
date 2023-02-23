@@ -33,7 +33,7 @@ namespace Graded {
     }
 
     instance GradedApplicative[EnvMutStateError[ka, env, st]] { 
-        pub def point(x: a): EnvMutStateError[ka, env, st, true, a] = 
+        pub def point(x: a): EnvMutStateError[ka, env, st, ef, a] = 
             Graded/EnvMutStateError.point(x)
 
         pub def ap(f: EnvMutStateError[ka, env, st, ef1, a -> b \ ef2], 

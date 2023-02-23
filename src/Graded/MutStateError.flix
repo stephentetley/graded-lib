@@ -42,7 +42,7 @@ namespace Graded {
     }
 
     instance GradedApplicative[MutStateError[ka, st]] { 
-        pub def point(x: a): MutStateError[ka, st, true, a] = Graded/MutStateError.point(x)
+        pub def point(x: a): MutStateError[ka, st, ef, a] = Graded/MutStateError.point(x)
 
         pub def ap(f: MutStateError[ka, st, ef1, a -> b \ ef2], x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] = 
             Graded/MutStateError.ap(f, x)
@@ -132,7 +132,8 @@ namespace Graded/MutStateError {
         f(s, cont)
 
 
-    pub def point(x: a): MutStateError[ka, st, ef, a] = MutStateError((_, k) -> k(x))
+    pub def point(x: a): MutStateError[ka, st, ef, a] = 
+        MutStateError((_, k) -> k(x))
 
 
     pub def map(f: a -> b \ ef, ma: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef1 and ef, b] =
