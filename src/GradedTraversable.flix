@@ -26,6 +26,13 @@ pub class GradedTraversable[t : Type -> Type] with Traversable[t]{
     pub def traverse[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
                     (f: a -> m[ef, b] \ ef1, t: t[a]): m[ef and ef1, t[b]] with GradedApplicative[m]
 
+    ///
+    /// Returns the result of running all the actions in the data structure `t`.
+    ///
+    pub def sequence[m: Bool -> Type -> Type, ef: Bool, a: Type]
+                    (t: t[m[ef, a]]): m[ef, t[a]] with GradedApplicative[m] =
+        GradedTraversable.traverse(identity, t)
+
 }
 
 

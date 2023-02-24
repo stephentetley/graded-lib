@@ -33,7 +33,7 @@ namespace Graded {
                         (_: Unit -> Unit \ ef1, ma: m[ef, a]): m[ef and ef1, a] = 
         unsafe_cast ma as m[ef and ef1, a]
 
-    /// As per Graded.extendEff...
+    /// First arg is a proxy as per `extendEff`...
     pub def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef, x: a): b \ {ef, ef1} =
         unsafe_cast f(x) as b \ {ef, ef1}
 
