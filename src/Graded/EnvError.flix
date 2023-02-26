@@ -140,7 +140,7 @@ namespace Graded/EnvError {
                     k(b)))
         )
 
-    pub def throwError(msg: String): EnvError[r, ka, env, a] = 
+    pub def throwError(msg: String): EnvError[ks, env, sf, a] = 
         EnvError((_, _) -> liftApp(upcast(identity), Err, msg))
 
     pub def catchError(ma: EnvError[ka, env, ef, a], 
@@ -161,7 +161,7 @@ namespace Graded/EnvError {
             apply1WithHandler(liftEff(upcast(identity), ma), e, a -> k(a), liftApp(upcast(identity), msg -> Err(f(msg))))
         )
 
-    pub def empty(): EnvError[r, ka, env, a] = throwError("empty")
+    pub def empty(): EnvError[ka, env, ef, a] = throwError("empty")
 
     pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 and ef2, a] =
         EnvError((e, k) ->

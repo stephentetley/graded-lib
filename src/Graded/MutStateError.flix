@@ -33,6 +33,9 @@ namespace Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
+    /// TODO - probably `st` should be kind: `Region -> Type`
+    /// and `r` added as a type param...
+    ///
     pub enum MutStateError[ka: Type, st: Type, ef: Bool, a: Type](
         st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
 
@@ -126,7 +129,7 @@ namespace Graded/MutStateError {
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runMutStateError(ma: MutStateError[a, st, ef, a], 
-                         s: st): Result[String, a] \ ef =
+                            s: st): Result[String, a] \ ef =
         let MutStateError(f) = ma;
         let cont = ans -> liftApp(upcast(identity), Ok, ans);
         f(s, cont)
