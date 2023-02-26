@@ -26,48 +26,48 @@ namespace Graded {
     pub enum Evaluator[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type](
         st[r] -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
 
-/*
-    instance GradedFunctor[Evaluator[ka, env]] { 
-        pub def map(f: a -> b \ ef1, m: Evaluator[ka, env, ef, a]): Evaluator[ka, env, ef and ef1, b] = 
+
+    instance GradedFunctor[Evaluator[r, ka, st]] { 
+        pub def map(f: a -> b \ ef1, m: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1, b] = 
             Graded/Evaluator.map(f, m)
     }
 
-    instance GradedApplicative[Evaluator[ka, env]] { 
-        pub def point(x: a): Evaluator[ka, env, ef, a] = 
+    instance GradedApplicative[Evaluator[r, ka, st]] { 
+        pub def point(x: a): Evaluator[r, ka, st, ef, a] = 
             Graded/Evaluator.point(x)
 
-        pub def ap(f: Evaluator[ka, env, ef1, a -> b \ ef2], m: Evaluator[ka, env, ef, a]): Evaluator[ka, env, ef and ef1 and ef2, b] = 
+        pub def ap(f: Evaluator[r, ka, st, ef1, a -> b \ ef2], m: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1 and ef2, b] = 
             Graded/Evaluator.ap(f, m)
     }
 
-    instance GradedMonad[Evaluator[ka, env]] { 
-        pub def flatMap(k: a -> Evaluator[ka, env, ef1, b] \ ef2, m: Evaluator[ka, env, ef, a]): Evaluator[ka, env, ef and ef1 and ef2, b] = 
+    instance GradedMonad[Evaluator[r, ka, st]] { 
+        pub def flatMap(k: a -> Evaluator[r, ka, st, ef1, b] \ ef2, m: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1 and ef2, b] = 
             Graded/Evaluator.flatMap(k, m)
     }
 
-    instance GradedZero[Evaluator[ka, env]] { 
-        pub def empty(): Evaluator[ka, env, ef, a] = 
+    instance GradedZero[Evaluator[r, ka, st]] { 
+        pub def empty(): Evaluator[r, ka, st, ef, a] = 
             Graded/Evaluator.empty()
     }
 
     // Orelse available for Evaluator because it is expected to only be reading the state
 
-    instance GradedOr[Evaluator[ka, env]] { 
-        pub def orelse(ma: Evaluator[ka, env, ef1, a], mb: Evaluator[ka, env, ef2, a]): Evaluator[ka, env, ef1 and ef2, a] =
+    instance GradedOr[Evaluator[r, ka, st]] { 
+        pub def orelse(ma: Evaluator[r, ka, st, ef1, a], mb: Evaluator[r, ka, st, ef2, a]): Evaluator[r, ka, st, ef1 and ef2, a] =
             Graded/Evaluator.orelse(ma, mb)
     }
     
-    instance GradedError[Evaluator[ka, env]] { 
-        pub def throwError(msg: String): Evaluator[ka, env, ef, a] =
+    instance GradedError[Evaluator[r, ka, st]] { 
+        pub def throwError(msg: String): Evaluator[r, ka, st, ef, a] =
             Graded/Evaluator.throwError(msg)
 
-        pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, env, ef, a]): Evaluator[ka, env, ef and ef1, a] = 
+        pub def mapError(f: String -> String \ ef1, ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1, a] = 
             Graded/Evaluator.mapError(f, ma)
 
-        pub def catchError(ma: Evaluator[ka, env, ef, a], hdlr: String -> Evaluator[ka, env, ef1, a] \ ef2): Evaluator[ka, env, ef and ef1 and ef2, a] = 
+        pub def catchError(ma: Evaluator[r, ka, st, ef, a], hdlr: String -> Evaluator[r, ka, st, ef1, a] \ ef2): Evaluator[r, ka, st, ef and ef1 and ef2, a] = 
             Graded/Evaluator.catchError(ma, hdlr)
     }  
-*/
+
 
 }
 
@@ -111,19 +111,17 @@ namespace Graded/Evaluator {
         f(e, cont)
 
 
-    pub def point[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                (x: a): Evaluator[r, ka, st, ef, a] = 
+    pub def point(x: a): Evaluator[r, ka, st, ef, a] = 
         Evaluator((_, k) -> k(x))
 
 
-    pub def map[r: Region, ka: Type, st: Region -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                (f: a -> b \ ef1, ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1, b] =
+    pub def map(f: a -> b \ ef1, ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1, b] =
         Evaluator((e, k) ->
             apply1(Graded.extendEff(upcast(identity), ma), e, a -> k(f(a)))
         )
 
-    pub def ap[r: Region, ka: Type, st: Region -> Type, ef: Bool, ef1: Bool, ef2: Bool, a: Type, b: Type]
-                (mf: Evaluator[r, ka, st, ef1, a -> b \ ef2], ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1 and ef2, b] =
+    pub def ap(mf: Evaluator[r, ka, st, ef1, a -> b \ ef2], 
+                ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1 and ef2, b] =
         Evaluator((e, k) ->
             apply1(Graded.extendEff(upcast(identity), mf), e, f ->
                 apply1(Graded.extendEff(upcast(identity), ma), e, a ->
@@ -131,8 +129,8 @@ namespace Graded/Evaluator {
         )
 
 
-    pub def flatMap[r: Region, ka: Type, st: Region -> Type, ef: Bool, ef1: Bool, ef2: Bool, a: Type, b: Type]
-                    (f: a -> Evaluator[r, ka, st, ef1, b] \ ef2, ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1 and ef2, b] =
+    pub def flatMap(f: a -> Evaluator[r, ka, st, ef1, b] \ ef2, 
+                    ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1 and ef2, b] =
         Evaluator((e, k) ->
             apply1(Graded.extendEff(upcast(identity), ma), e, a ->
                 apply1(Graded.extendEff(upcast(identity), f(a)), e, b ->
@@ -142,8 +140,7 @@ namespace Graded/Evaluator {
     pub def throwError(msg: String): Evaluator[r, ka, st, ef, a] = 
         Evaluator((_, _) -> Graded.liftApp(upcast(identity), Err, msg))
 
-    pub def catchError[r: Region, ka: Type, st: Region -> Type, ef: Bool, ef1: Bool, ef2: Bool, a: Type]
-                        (ma: Evaluator[r, ka, st, ef, a], 
+    pub def catchError(ma: Evaluator[r, ka, st, ef, a], 
                         hdlr: String -> Evaluator[r, ka, st, ef1, a] \ ef2): Evaluator[r, ka, st, ef and ef1 and ef2, a] = 
         Evaluator((e, k) -> 
             let Evaluator(ma1) = Graded.extendEff(upcast(identity), ma);
@@ -156,8 +153,7 @@ namespace Graded/Evaluator {
             }
         )
 
-    pub def mapError[r: Region, ka: Type, st: Region -> Type, ef: Bool, ef1: Bool, a: Type]
-                    (f: String -> String \ ef1, ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1, a] = 
+    pub def mapError(f: String -> String \ ef1, ma: Evaluator[r, ka, st, ef, a]): Evaluator[r, ka, st, ef and ef1, a] = 
         Evaluator((e, k) -> 
             apply1WithHandler(Graded.extendEff(upcast(identity), ma), e, a -> k(a), Graded.liftApp(upcast(identity), msg -> Err(f(msg))))
         )
@@ -165,8 +161,7 @@ namespace Graded/Evaluator {
 
     pub def empty(): Evaluator[r, ka, st, ef, a] = throwError("empty")
 
-    pub def orelse[r: Region, ka: Type, st: Region -> Type, ef1: Bool, ef2: Bool, a: Type]
-                    (ma: Evaluator[r, ka, st, ef1, a], mb: Evaluator[r, ka, st, ef2, a]): Evaluator[r, ka, st, ef1 and ef2, a] =
+    pub def orelse(ma: Evaluator[r, ka, st, ef1, a], mb: Evaluator[r, ka, st, ef2, a]): Evaluator[r, ka, st, ef1 and ef2, a] =
         Evaluator((e, k) ->
             apply1WithHandler(Graded.extendEff(upcast(identity), ma), e, a -> k(a), _ -> apply1(Graded.extendEff(upcast(identity), mb), e, b -> k(b)))
         )
