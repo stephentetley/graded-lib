@@ -18,12 +18,10 @@ namespace Graded {
 
 
     ///
-    /// The Builder monad is a restrcted MutState-Error monad (no `put` and `get`).
+    /// The Builder monad is a restricted MutState-Error monad (no direct `put` and `get`).
     /// 
     /// `ka` is the continuation answer type
     ///
-    /// TODO - probably `st` should be kind: `Region -> Type`
-    /// and `r` added as a type param...
     ///
     pub enum Builder[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type](
         st[r] -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
