@@ -23,44 +23,48 @@ namespace Graded {
     /// `ka` is the continuation answer type
     ///
     ///
-    pub enum MutStateError[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type](
-        st[r] -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
+    /// Ideally st would be st: Region -> Type with r: Region but this ntly causes a compiler
+    /// crash (Flix issue #2113)
+    /// 
+    pub enum MutStateError[ka: Type, st: Type, ef: Bool, a: Type](
+        st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
+    )
 
-    instance GradedFunctor[MutStateError[r, ka, st]] { 
+    instance GradedFunctor[MutStateError[ka, st]] { 
         pub def map(f: a -> b \ ef1, 
-                    x: MutStateError[r, ka, st, ef, a]): MutStateError[r, ka, st, ef and ef1, b] = 
+                    x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, b] = 
             Graded/MutStateError.map(f, x)
     }
 
-    instance GradedApplicative[MutStateError[r, ka, st]] { 
-        pub def point(x: a): MutStateError[r, ka, st, ef, a] = Graded/MutStateError.point(x)
+    instance GradedApplicative[MutStateError[ka, st]] { 
+        pub def point(x: a): MutStateError[ka, st, ef, a] = Graded/MutStateError.point(x)
 
-        pub def ap(f: MutStateError[r, ka, st, ef1, a -> b \ ef2], 
-                    x: MutStateError[r, ka, st, ef, a]): MutStateError[r, ka, st, ef and ef1 and ef2, b] = 
+        pub def ap(f: MutStateError[ka, st, ef1, a -> b \ ef2], 
+                    x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] = 
             Graded/MutStateError.ap(f, x)
     }
 
-    instance GradedMonad[MutStateError[r, ka, st]] { 
-        pub def flatMap(k: a -> MutStateError[r, ka, st, ef1, b] \ ef, 
-                        x: MutStateError[r, ka, st, ef2, a]): MutStateError[r, ka, st, ef1 and ef2 and ef, b] = 
+    instance GradedMonad[MutStateError[ka, st]] { 
+        pub def flatMap(k: a -> MutStateError[ka, st, ef1, b] \ ef, 
+                        x: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 and ef2 and ef, b] = 
             Graded/MutStateError.flatMap(k, x)
     }
 
 
-    instance GradedZero[MutStateError[r, ka, st]] { 
-        pub def empty(): MutStateError[r, ka, st, ef, a] = Graded/MutStateError.empty()
+    instance GradedZero[MutStateError[ka, st]] { 
+        pub def empty(): MutStateError[ka, st, ef, a] = Graded/MutStateError.empty()
     }
 
-    instance GradedError[MutStateError[r, ka, st]] { 
-        pub def throwError(msg: String): MutStateError[r, ka, st, ef, a] =
+    instance GradedError[MutStateError[ka, st]] { 
+        pub def throwError(msg: String): MutStateError[ka, st, ef, a] =
             Graded/MutStateError.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, 
-                        ma: MutStateError[r, ka, st, ef, a]): MutStateError[r, ka, st, ef and ef1, a] = 
+                        ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a] = 
             Graded/MutStateError.mapError(f, ma)
 
-        pub def catchError(ma: MutStateError[r, ka, st, ef, a], 
-                            hdlr: String -> MutStateError[r, ka, st, ef1, a] \ ef2): MutStateError[r, ka, st, ef and ef1 and ef2, a] = 
+        pub def catchError(ma: MutStateError[ka, st, ef, a], 
+                            hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
             Graded/MutStateError.catchError(ma, hdlr)
     }  
 
@@ -74,17 +78,15 @@ namespace Graded/MutStateError {
     use Graded.MutStateError.{MutStateError}
 
 
-    def apply1[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                (ma: MutStateError[r, ka, st, ef, a], 
-                s: st[r], 
+    def apply1(ma: MutStateError[ka, st, ef, a], 
+                s: st, 
                 k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let MutStateError(ma1) = ma;
         ma1(s, k)
 
 
-    def apply1WithHandler[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                            (ma: MutStateError[r, ka, st, ef, a], 
-                            s: st[r], 
+    def apply1WithHandler(ma: MutStateError[ka, st, ef, a], 
+                            s: st, 
                             k: a -> Result[String, ka] \ ef, 
                             handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let MutStateError(ma1) = ma;
@@ -97,24 +99,23 @@ namespace Graded/MutStateError {
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
-    pub def runMutStateError[r: Region, st: Region -> Type, ef: Bool, a: Type]
-                            (ma: MutStateError[r, a, st, ef, a], 
-                                s: st[r]): Result[String, a] \ ef =
+    pub def runMutStateError(ma: MutStateError[a, st, ef, a], 
+                                s: st): Result[String, a] \ ef =
         let MutStateError(f) = ma;
         let cont = ans -> Graded.liftApp(upcast(identity), Ok, ans);
         f(s, cont)
 
 
-    pub def point(x: a): MutStateError[r, ka, st, ef, a] = 
+    pub def point(x: a): MutStateError[ka, st, ef, a] = 
         MutStateError((_, k) -> k(x))
 
 
-    pub def map(f: a -> b \ ef, ma: MutStateError[r, ka, st, ef1, a]): MutStateError[r, ka, st, ef1 and ef, b] =
+    pub def map(f: a -> b \ ef, ma: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef1 and ef, b] =
         MutStateError((s, k) ->
             apply1(Graded.extendEff(upcast(identity), ma), s, a -> {let b = f(a); k(b)})
         )
 
-    pub def ap(mf: MutStateError[r, ka, st, ef1, a -> b \ ef2], ma: MutStateError[r, ka, st, ef, a]): MutStateError[r, ka, st, ef and ef1 and ef2, b] =
+    pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef2], ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] =
         MutStateError((s, k) ->
             apply1(Graded.extendEff(upcast(identity), mf), s, f1 ->
                 apply1(Graded.extendEff(upcast(identity),  ma), s, a1 ->
@@ -122,7 +123,7 @@ namespace Graded/MutStateError {
         )
 
 
-    pub def flatMap(f: a -> MutStateError[r, ka, st, ef1, b] \ ef, ma: MutStateError[r, ka, st, ef2, a]): MutStateError[r, ka, st, ef1 and ef2 and ef, b] =
+    pub def flatMap(f: a -> MutStateError[ka, st, ef1, b] \ ef, ma: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 and ef2 and ef, b] =
         MutStateError((s, k) ->
             apply1(Graded.extendEff(upcast(identity), ma), s, a ->
                 apply1(Graded.extendEff(upcast(identity), f(a)), s, b ->
@@ -130,22 +131,20 @@ namespace Graded/MutStateError {
         )
 
 
-
-
-    pub def empty(): MutStateError[r, ka, st, ef, a] = 
+    pub def empty(): MutStateError[ka, st, ef, a] = 
         throwError("empty")
 
-    pub def throwError(msg: String): MutStateError[r, ka, st, ef, a] = 
+    pub def throwError(msg: String): MutStateError[ka, st, ef, a] = 
         MutStateError((_, _) -> Graded.liftApp(upcast(identity), Err, msg))
 
-    pub def mapError(f: String -> String \ ef1, ma: MutStateError[r, ka, st, ef, a]): MutStateError[r, ka, st, ef and ef1, a]= 
+    pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a]= 
         MutStateError((s, k) -> 
             apply1WithHandler(Graded.extendEff(upcast(identity), ma), s, a -> k(a), Graded.liftApp(upcast(identity), msg -> Err(f(msg))))
         )
 
 
-    pub def catchError(ma: MutStateError[r, ka, st, ef, a], 
-                        hdlr: String -> MutStateError[r, ka, st, ef1, a] \ ef2): MutStateError[r, ka, st, ef and ef1 and ef2, a] = 
+    pub def catchError(ma: MutStateError[ka, st, ef, a], 
+                        hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
         MutStateError((s, k) -> 
             let MutStateError(ma1) = Graded.extendEff(upcast(identity), ma);
             match ma1(s, k) {
@@ -158,8 +157,7 @@ namespace Graded/MutStateError {
         )
 
     /// ideally something like > Err(liftApp(@ \ ef, getMessage, ex)) 
-    pub def liftGetter[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                        (f: st[r] -> a \ {ef, Read(r)}): MutStateError[r, ka, st, ef and r, a] = 
+    pub def liftGetter(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
         MutStateError((s, k) ->
             try {
                 let ans = f(s);
@@ -172,8 +170,7 @@ namespace Graded/MutStateError {
         )
 
     // f should not throw an exception
-    pub def liftGetterResult[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type, e: Type]
-                            (f: st[r] -> Result[e, a] \ {ef, Read(r)}): MutStateError[r, ka, st, ef and r, a] with ToString[e] = 
+    pub def liftGetterResult(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
         MutStateError((s, k) ->
             match f(s) { 
                 case Ok(a)  => k(a)
@@ -181,8 +178,7 @@ namespace Graded/MutStateError {
             } 
         )
 
-    pub def liftSetter![r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                        (f: st[r] -> a \ {ef, Write(r)}): MutStateError[r, ka, st, ef and r, a] = 
+    pub def liftSetter!(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
         MutStateError((s, k) ->
             try {
                 let a = f(s); 
@@ -195,8 +191,7 @@ namespace Graded/MutStateError {
         )
 
     // f should not throw an exception
-    pub def liftSetterResult![r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type, e: Type]
-                                (f: st[r] -> Result[e, a] \ {ef, Write(r)}): MutStateError[r, ka, st, ef and r, a] with ToString[e] = 
+    pub def liftSetterResult!(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
         MutStateError((s, k) ->
             match f(s) {
                 case Ok(a)    => k(a)
@@ -205,13 +200,13 @@ namespace Graded/MutStateError {
         )
 
 
-    pub def liftAction(f: Unit -> a \ ef): MutStateError[r, ka, st, ef, a] = 
+    pub def liftAction(f: Unit -> a \ ef): MutStateError[ka, st, ef, a] = 
         MutStateError((_, k) ->
             let a = f();
             k(a)
         )
 
-    pub def liftActionResult(f: Unit -> Result[e, a] \ ef): MutStateError[r, ka, st, ef, a] with ToString[e] = 
+    pub def liftActionResult(f: Unit -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
         MutStateError((_, k) ->
             match f() {
                 case Ok(a)  => k(a)

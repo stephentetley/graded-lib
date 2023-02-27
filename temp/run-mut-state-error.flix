@@ -1,4 +1,4 @@
-// java -jar ..\bin\flix-master.jar .\test\run-mut-state-error.flix .\src\*.flix .\src\Graded\*.flix
+// java -jar ..\bin\flix-master.jar .\temp\run-mut-state-error.flix .\src\*.flix .\src\Graded\MutStateError.flix
 
 pub def main(): Int32 \ IO = 
     println("run-mut-state-error...");
@@ -8,10 +8,13 @@ pub def main(): Int32 \ IO =
     0
 
 
-pub def test01(): Unit \ IO = 
+pub def test01(): Unit \ IO = region rc {
     use GradedApplicative.{point};
     println("test01");
-    Graded/MutStateError.runMutStateError(point(5), 0) |> println
+    let st = ref 0 @ rc;
+    Graded/MutStateError.runMutStateError(point(5), st) |> println
+}
+
 
 pub def test02(): Unit \ IO = 
     use GradedApplicative.{point};

@@ -22,47 +22,50 @@ namespace Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
+    /// Ideally st would be st: Region -> Type with r: Region but this ntly causes a compiler
+    /// crash (Flix issue #2113)
     ///
-    pub enum Builder[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type](
-        st[r] -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
+    pub enum Builder[ka: Type, st: Type, ef: Bool, a: Type](
+        st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
+    )
 
-    instance GradedFunctor[Builder[r, ka, st]] { 
-        pub def map(f: a -> b \ ef1, x: Builder[r, ka, st, ef, a]): Builder[r, ka, st, ef and ef1, b] = 
+    instance GradedFunctor[Builder[ka, st]] { 
+        pub def map(f: a -> b \ ef1, x: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, b] = 
             Graded/Builder.map(f, x)
     }
 
-    instance GradedApplicative[Builder[r, ka, st]] { 
-        pub def point(x: a): Builder[r, ka, st, ef, a] = 
+    instance GradedApplicative[Builder[ka, st]] { 
+        pub def point(x: a): Builder[ka, st, ef, a] = 
             Graded/Builder.point(x)
 
-        pub def ap(f: Builder[r, ka, st, ef1, a -> b \ ef2], 
-                    x: Builder[r, ka, st, ef, a]): Builder[r, ka, st, ef and ef1 and ef2, b] = 
+        pub def ap(f: Builder[ka, st, ef1, a -> b \ ef2], 
+                    x: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] = 
             Graded/Builder.ap(f, x)
     }
 
-    instance GradedMonad[Builder[r, ka, st]] { 
-        pub def flatMap(k: a -> Builder[r, ka, st, ef1, b] \ ef, 
-                        x: Builder[r, ka, st, ef2, a]): Builder[r, ka, st, ef1 and ef2 and ef, b] = 
+    instance GradedMonad[Builder[ka, st]] { 
+        pub def flatMap(k: a -> Builder[ka, st, ef1, b] \ ef, 
+                        x: Builder[ka, st, ef2, a]): Builder[ka, st, ef1 and ef2 and ef, b] = 
             Graded/Builder.flatMap(k, x)
     }
 
     // Orelse not available for Builder 
 
 
-    instance GradedZero[Builder[r, ka, st]] { 
-        pub def empty(): Builder[r, ka, st, ef, a] = Graded/Builder.empty()
+    instance GradedZero[Builder[ka, st]] { 
+        pub def empty(): Builder[ka, st, ef, a] = Graded/Builder.empty()
     }
 
-    instance GradedError[Builder[r, ka, st]] { 
-        pub def throwError(msg: String): Builder[r, ka, st, ef, a] =
+    instance GradedError[Builder[ka, st]] { 
+        pub def throwError(msg: String): Builder[ka, st, ef, a] =
             Graded/Builder.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, 
-                        ma: Builder[r, ka, st, ef, a]): Builder[r, ka, st, ef and ef1, a] = 
+                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, a] = 
             Graded/Builder.mapError(f, ma)
 
-        pub def catchError(ma: Builder[r, ka, st, ef, a], 
-                            hdlr: String -> Builder[r, ka, st, ef1, a] \ ef2): Builder[r, ka, st, ef and ef1 and ef2, a] = 
+        pub def catchError(ma: Builder[ka, st, ef, a], 
+                            hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef and ef1 and ef2, a] = 
             Graded/Builder.catchError(ma, hdlr)
     }  
 
@@ -76,17 +79,15 @@ namespace Graded/Builder {
     use Graded.Builder.{Builder}
 
 
-    def apply1[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                (ma: Builder[r, ka, st, ef, a], 
-                s: st[r], 
+    def apply1(ma: Builder[ka, st, ef, a], 
+                s: st, 
                 k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let Builder(ma1) = ma;
         ma1(s, k)
 
 
-    def apply1WithHandler[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                            (ma: Builder[r, ka, st, ef, a], 
-                            s: st[r], 
+    def apply1WithHandler(ma: Builder[ka, st, ef, a], 
+                            s: st, 
                             k: a -> Result[String, ka] \ ef, 
                             handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let Builder(ma1) = ma;
@@ -100,24 +101,23 @@ namespace Graded/Builder {
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
-    pub def runBuilder[r: Region, st: Region -> Type, ef: Bool, a: Type]
-                        (ma: Builder[r, a, st, ef, a], 
-                        s: st[r]): Result[String, a] \ ef =
+    pub def runBuilder(ma: Builder[a, st, ef, a], 
+                        s: st): Result[String, a] \ ef =
         let Builder(f) = ma;
         let cont = ans -> Graded.liftApp(upcast(identity), Ok, ans);
         f(s, cont)
 
 
-    pub def point(x: a): Builder[r, ka, st, ef, a] = 
+    pub def point(x: a): Builder[ka, st, ef, a] = 
         Builder((_, k) -> k(x))
 
 
-    pub def map(f: a -> b \ ef, ma: Builder[r, ka, st, ef1, a]): Builder[r, ka, st, ef1 and ef, b] =
+    pub def map(f: a -> b \ ef, ma: Builder[ka, st, ef1, a]): Builder[ka, st, ef1 and ef, b] =
         Builder((s, k) ->
             apply1(Graded.extendEff(upcast(identity), ma), s, a -> {let b = f(a); k(b)})
         )
 
-    pub def ap(mf: Builder[r, ka, st, ef1, a -> b \ ef2], ma: Builder[r, ka, st, ef, a]): Builder[r, ka, st, ef and ef1 and ef2, b] =
+    pub def ap(mf: Builder[ka, st, ef1, a -> b \ ef2], ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] =
         Builder((s, k) ->
             apply1(Graded.extendEff(upcast(identity), mf), s, f1 ->
                 apply1(Graded.extendEff(upcast(identity),  ma), s, a1 ->
@@ -125,7 +125,7 @@ namespace Graded/Builder {
         )
 
 
-    pub def flatMap(f: a -> Builder[r, ka, st, ef1, b] \ ef, ma: Builder[r, ka, st, ef2, a]): Builder[r, ka, st, ef1 and ef2 and ef, b] =
+    pub def flatMap(f: a -> Builder[ka, st, ef1, b] \ ef, ma: Builder[ka, st, ef2, a]): Builder[ka, st, ef1 and ef2 and ef, b] =
         Builder((s, k) ->
             apply1(Graded.extendEff(upcast(identity), ma), s, a ->
                 apply1(Graded.extendEff(upcast(identity), f(a)), s, b ->
@@ -133,21 +133,21 @@ namespace Graded/Builder {
         )
 
 
-    pub def empty(): Builder[r, ka, st, ef, a] = 
+    pub def empty(): Builder[ka, st, ef, a] = 
         throwError("empty")
 
-    pub def throwError(msg: String): Builder[r, ka, st, ef, a] = 
+    pub def throwError(msg: String): Builder[ka, st, ef, a] = 
         Builder((_, _) -> Graded.liftApp(upcast(identity), Err, msg))
 
     pub def mapError(f: String -> String \ ef1, 
-                        ma: Builder[r, ka, st, ef, a]): Builder[r, ka, st, ef and ef1, a]= 
+                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, a]= 
         Builder((s, k) -> 
             apply1WithHandler(Graded.extendEff(upcast(identity), ma), s, a -> k(a), Graded.liftApp(upcast(identity), msg -> Err(f(msg))))
         )
 
 
-    pub def catchError(ma: Builder[r, ka, st, ef, a], 
-                        hdlr: String -> Builder[r, ka, st, ef1, a] \ ef2): Builder[r, ka, st, ef and ef1 and ef2, a] = 
+    pub def catchError(ma: Builder[ka, st, ef, a], 
+                        hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef and ef1 and ef2, a] = 
         Builder((s, k) -> 
             let Builder(ma1) = Graded.extendEff(upcast(identity), ma);
             match ma1(s, k) {
@@ -160,8 +160,7 @@ namespace Graded/Builder {
         )
 
     /// ideally something like > Err(liftApp(@ \ ef, getMessage, ex)) 
-    pub def liftGetter[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                        (f: st[r] -> a \ {ef, Read(r)}): Builder[r, ka, st, ef and r, a] = 
+    pub def liftGetter(f: st -> a \ ef): Builder[ka, st, ef, a] = 
         Builder((s, k) ->
             try {
                 let ans = f(s);
@@ -174,8 +173,7 @@ namespace Graded/Builder {
         )
 
     // f should not throw an exception
-    pub def liftGetterResult[r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type, e: Type]
-                            (f: st[r] -> Result[e, a] \ {ef, Read(r)}): Builder[r, ka, st, ef and r, a] with ToString[e] = 
+    pub def liftGetterResult(f: st -> Result[e, a] \ ef): Builder[ka, st, ef, a] with ToString[e] = 
         Builder((s, k) ->
             match f(s) { 
                 case Ok(a)  => k(a)
@@ -183,8 +181,7 @@ namespace Graded/Builder {
             } 
         )
 
-    pub def liftSetter![r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type]
-                        (f: st[r] -> a \ {ef, Write(r)}): Builder[r, ka, st, ef and r, a] = 
+    pub def liftSetter!(f: st -> a \ ef): Builder[ka, st, ef, a] = 
         Builder((s, k) ->
             try {
                 let a = f(s); 
@@ -197,8 +194,7 @@ namespace Graded/Builder {
         )
 
     // f should not throw an exception
-    pub def liftSetterResult![r: Region, ka: Type, st: Region -> Type, ef: Bool, a: Type, e: Type]
-                                (f: st[r] -> Result[e, a] \ ef): Builder[r, ka, st, ef, a] with ToString[e] = 
+    pub def liftSetterResult!(f: st -> Result[e, a] \ ef): Builder[ka, st, ef, a] with ToString[e] = 
         Builder((s, k) ->
             match f(s) {
                 case Ok(a)    => k(a)
@@ -207,13 +203,13 @@ namespace Graded/Builder {
         )
 
 
-    pub def liftAction(f: Unit -> a \ ef): Builder[r, ka, st, ef, a] = 
+    pub def liftAction(f: Unit -> a \ ef): Builder[ka, st, ef, a] = 
         Builder((_, k) ->
             let a = f();
             k(a)
         )
 
-    pub def liftActionResult(f: Unit -> Result[e, a] \ ef): Builder[r, ka, st, ef, a] with ToString[e] = 
+    pub def liftActionResult(f: Unit -> Result[e, a] \ ef): Builder[ka, st, ef, a] with ToString[e] = 
         Builder((_, k) ->
             match f() {
                 case Ok(a)  => k(a)
