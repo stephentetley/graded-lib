@@ -45,7 +45,7 @@ instance GradedTraversable[List] {
             case Nil     => k(GradedApplicative.point(Nil))
             case x :: xs => loop(xs, ks -> k(ListHelper.consA(Graded.captureEff(_ -> f(x)), ks)))
         };       
-        loop(l, upcast(identity))
+        loop(l, identity)
 
 }
 

@@ -68,6 +68,6 @@ instance GradedFoldable[List] {
             case Nil     => k(GradedApplicative.point(s))
             case x :: rs => loop(rs, s1 -> k(GradedMonad.flatMap(y -> f(x, y), s1)))
         };
-        loop(l, upcast(identity))
+        loop(l, identity)
 
 }

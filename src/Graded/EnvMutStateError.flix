@@ -92,18 +92,6 @@ namespace Graded/EnvMutStateError {
             case Ok(a)    => Ok(a)
         }
 
-    ///
-    /// The first arg is just a proxy - we can use `upcast(identity)` to have it filled in 
-    /// by the typechecker.
-    /// Ideally we would want something like `liftApp(@ \ ef, getMessage, ex))` - a macro rather than 
-    /// a function where we can supply an effect type as the first argument.
-    ///
-    def liftEff(_: Unit -> Unit \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, a] = 
-        unsafe_cast ma as EnvMutStateError[ka, env, st, ef and ef1, a]
-
-    /// As per liftEff...
-    def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef, x: a): b \ {ef, ef1} =
-        unsafe_cast f(x) as b \ {ef, ef1}
 
     ///
     /// Returns the result of applying `ma` to the state `s` and env `e`.
@@ -112,7 +100,7 @@ namespace Graded/EnvMutStateError {
                                 e: env,
                                 s: st): Result[String, a] \ ef =
         let EnvMutStateError(f) = ma;
-        let cont = a -> liftApp(upcast(identity), Ok, a);
+        let cont = a -> Graded.liftApp(identity, Ok, a);
         f(e, s, cont)
 
 
@@ -121,14 +109,14 @@ namespace Graded/EnvMutStateError {
 
     pub def map(f: a -> b \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, b] =
         EnvMutStateError((e, s, k) ->
-            apply1(liftEff(upcast(identity), ma), e, s, a -> k(f(a)))
+            apply1(Graded.extendEff(identity, ma), e, s, a -> k(f(a)))
         )
 
     pub def ap(mf: EnvMutStateError[ka, env, st, ef1, a -> b \ ef2], 
                 ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1 and ef2, b] =
         EnvMutStateError((e, s, k) ->
-            apply1(liftEff(upcast(identity), mf), e, s, f ->
-                apply1(liftEff(upcast(identity), ma), e, s, a ->
+            apply1(Graded.extendEff(identity, mf), e, s, f ->
+                apply1(Graded.extendEff(identity, ma), e, s, a ->
                     k(f(a))))
         )
 
@@ -136,22 +124,22 @@ namespace Graded/EnvMutStateError {
     pub def flatMap(f: a -> EnvMutStateError[ka, env, st, ef1, b] \ ef2, 
                     ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1 and ef2, b] =
         EnvMutStateError((e, s, k) ->
-            apply1(liftEff(upcast(identity), ma), e, s, a ->
-                apply1(liftEff(upcast(identity), f(a)), e, s, b ->
+            apply1(Graded.extendEff(identity, ma), e, s, a ->
+                apply1(Graded.extendEff(identity, f(a)), e, s, b ->
                     k(b)))
         )
 
     pub def throwError(msg: String): EnvMutStateError[ka, env, st, ef, a] = 
-        EnvMutStateError((_, _, _) -> liftApp(upcast(identity), Err, msg))
+        EnvMutStateError((_, _, _) -> Graded.liftApp(identity, Err, msg))
 
     pub def catchError(ma: EnvMutStateError[ka, env, st, ef, a], 
                         hdlr: String -> EnvMutStateError[ka, env, st, ef1, a] \ ef2): EnvMutStateError[ka, env, st, ef and ef1 and ef2, a] = 
         EnvMutStateError((e, s, k) -> 
-            let EnvMutStateError(ma1) = liftEff(upcast(identity), ma);
+            let EnvMutStateError(ma1) = Graded.extendEff(identity, ma);
             match ma1(e, s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let EnvMutStateError(hdlr1) = liftEff(upcast(identity), hdlr(msg)); 
+                    let EnvMutStateError(hdlr1) = Graded.extendEff(identity, hdlr(msg)); 
                     hdlr1(e, s, k)
                 }
             }
@@ -159,7 +147,7 @@ namespace Graded/EnvMutStateError {
 
     pub def mapError(f: String -> String \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, a] = 
         EnvMutStateError((e, s, k) -> 
-            apply1WithHandler(liftEff(upcast(identity), ma), e, s, a -> k(a), liftApp(upcast(identity), msg -> Err(f(msg))))
+            apply1WithHandler(Graded.extendEff(identity, ma), e, s, a -> k(a), Graded.liftApp(identity, msg -> Err(f(msg))))
         )
 
     pub def liftGetter(f: env -> st -> a \ ef): EnvMutStateError[ka, env, st, ef, a] = 
@@ -226,7 +214,7 @@ namespace Graded/EnvMutStateError {
 
     pub def localEnv(f: env -> env1 \ ef1, ma: EnvMutStateError[ka, env1, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, a] = 
         EnvMutStateError((e, s, k) -> 
-            apply1(liftEff(upcast(identity), ma), f(e), s, a1 -> 
+            apply1(Graded.extendEff(identity, ma), f(e), s, a1 -> 
                 k(a1))
         )
 

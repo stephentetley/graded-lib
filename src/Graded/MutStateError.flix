@@ -102,7 +102,7 @@ namespace Graded/MutStateError {
     pub def runMutStateError(ma: MutStateError[a, st, ef, a], 
                                 s: st): Result[String, a] \ ef =
         let MutStateError(f) = ma;
-        let cont = ans -> Graded.liftApp(upcast(identity), Ok, ans);
+        let cont = ans -> Graded.liftApp(identity, Ok, ans);
         f(s, cont)
 
 
@@ -112,21 +112,21 @@ namespace Graded/MutStateError {
 
     pub def map(f: a -> b \ ef, ma: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef1 and ef, b] =
         MutStateError((s, k) ->
-            apply1(Graded.extendEff(upcast(identity), ma), s, a -> {let b = f(a); k(b)})
+            apply1(Graded.extendEff(identity, ma), s, a -> {let b = f(a); k(b)})
         )
 
     pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef2], ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] =
         MutStateError((s, k) ->
-            apply1(Graded.extendEff(upcast(identity), mf), s, f1 ->
-                apply1(Graded.extendEff(upcast(identity),  ma), s, a1 ->
+            apply1(Graded.extendEff(identity, mf), s, f1 ->
+                apply1(Graded.extendEff(identity,  ma), s, a1 ->
                     k(f1(a1))))
         )
 
 
     pub def flatMap(f: a -> MutStateError[ka, st, ef1, b] \ ef, ma: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 and ef2 and ef, b] =
         MutStateError((s, k) ->
-            apply1(Graded.extendEff(upcast(identity), ma), s, a ->
-                apply1(Graded.extendEff(upcast(identity), f(a)), s, b ->
+            apply1(Graded.extendEff(identity, ma), s, a ->
+                apply1(Graded.extendEff(identity, f(a)), s, b ->
                     k(b)))
         )
 
@@ -135,22 +135,22 @@ namespace Graded/MutStateError {
         throwError("empty")
 
     pub def throwError(msg: String): MutStateError[ka, st, ef, a] = 
-        MutStateError((_, _) -> Graded.liftApp(upcast(identity), Err, msg))
+        MutStateError((_, _) -> Graded.liftApp(identity, Err, msg))
 
     pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a]= 
         MutStateError((s, k) -> 
-            apply1WithHandler(Graded.extendEff(upcast(identity), ma), s, a -> k(a), Graded.liftApp(upcast(identity), msg -> Err(f(msg))))
+            apply1WithHandler(Graded.extendEff(identity, ma), s, a -> k(a), Graded.liftApp(identity, msg -> Err(f(msg))))
         )
 
 
     pub def catchError(ma: MutStateError[ka, st, ef, a], 
                         hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
         MutStateError((s, k) -> 
-            let MutStateError(ma1) = Graded.extendEff(upcast(identity), ma);
+            let MutStateError(ma1) = Graded.extendEff(identity, ma);
             match ma1(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let MutStateError(hdlr1) = Graded.extendEff(upcast(identity), hdlr(msg)); 
+                    let MutStateError(hdlr1) = Graded.extendEff(identity, hdlr(msg)); 
                     hdlr1(s, k)
                 }
             }
@@ -165,7 +165,7 @@ namespace Graded/MutStateError {
             } catch {
                 case ex: ##java.lang.Exception => 
                     import java.lang.Throwable.getMessage(): String \ {};
-                    Err(Graded.liftApp(upcast(identity), getMessage, ex))
+                    Err(Graded.liftApp(identity, getMessage, ex))
             }            
         )
 

@@ -21,7 +21,7 @@ namespace Graded {
     ///
     pub def captureEff[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type]
                         (f: Unit -> m[ef, a] \ ef1): m[ef and ef1, a] = 
-        unsafe_cast f() as m[ef and ef1, a] \ {}
+        unchecked_cast(f() as m[ef and ef1, a] \ {})
 
     ///
     /// The first arg is just a proxy - we can use `upcast(identity)` to have it filled in 
@@ -31,11 +31,11 @@ namespace Graded {
     ///
     pub def extendEff[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type]
                         (_: Unit -> Unit \ ef1, ma: m[ef, a]): m[ef and ef1, a] = 
-        unsafe_cast ma as m[ef and ef1, a]
+        unchecked_cast(ma as m[ef and ef1, a])
 
     /// First arg is a proxy as per `extendEff`...
     pub def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef, x: a): b \ {ef, ef1} =
-        unsafe_cast f(x) as b \ {ef, ef1}
+        unchecked_cast(f(x) as b \ {ef, ef1})
 
 
 }

@@ -96,7 +96,7 @@ namespace Graded/StateError {
     ///
     pub def runStateError(ma: StateError[(st, a), st, ef, a], s: st): Result[String, (st, a)] \ ef =
         let StateError(f) = ma;
-        let cont = (a, s1) -> Graded.liftApp(upcast(identity), Ok, (s1, a));
+        let cont = (a, s1) -> Graded.liftApp(identity, Ok, (s1, a));
         f(s, cont)
 
     pub def point(x: a): StateError[ka, st, ef, a] = 
@@ -104,39 +104,39 @@ namespace Graded/StateError {
 
     pub def map(f: a -> b \ ef, ma: StateError[ka, st, ef1, a]): StateError[ka, st, ef1 and ef, b] =
         StateError((s, k) ->
-            apply1(Graded.extendEff(upcast(identity), ma), s, (a, s1) -> {let b = f(a); k(b, s1)})
+            apply1(Graded.extendEff(identity, ma), s, (a, s1) -> {let b = f(a); k(b, s1)})
         )
 
     pub def ap(mf: StateError[ka, st, ef1, a -> b \ ef2], ma: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1 and ef2, b] =
         StateError((s, k) ->
-            apply1(Graded.extendEff(upcast(identity), mf), s, (f, s1) ->
-                apply1(Graded.extendEff(upcast(identity), ma), s1, (a, s2) ->
+            apply1(Graded.extendEff(identity, mf), s, (f, s1) ->
+                apply1(Graded.extendEff(identity, ma), s1, (a, s2) ->
                     k(f(a), s2)))
         )
 
     pub def flatMap(f: a -> StateError[ka, st, ef1, b] \ ef2, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1 and ef2, b] =
         StateError((s, k) ->
-            apply1(Graded.extendEff(upcast(identity), ma), s, (a, s1) ->
-                apply1(Graded.extendEff(upcast(identity), f(a)), s1, (b, s2) ->
+            apply1(Graded.extendEff(identity, ma), s, (a, s1) ->
+                apply1(Graded.extendEff(identity, f(a)), s1, (b, s2) ->
                     k(b, s2)))
         )
 
     pub def orelse(ma: StateError[ka, st, ef1, a], mb: StateError[ka, st, ef2, a]): StateError[ka, st, ef1 and ef2, a] =
         StateError((s, k) ->
-            apply1WithHandler(Graded.extendEff(upcast(identity), ma), s, a -> k(a), _ -> apply1(Graded.extendEff(upcast(identity), mb), s, b -> k(b)))
+            apply1WithHandler(Graded.extendEff(identity, ma), s, a -> k(a), _ -> apply1(Graded.extendEff(identity, mb), s, b -> k(b)))
         )
 
     pub def throwError(msg: String): StateError[r, ka, st, a] = 
-        StateError((_, _) -> Graded.liftApp(upcast(identity), Err, msg))
+        StateError((_, _) -> Graded.liftApp(identity, Err, msg))
 
     pub def catchError(ma: StateError[ka, st, ef, a], 
                         hdlr: String -> StateError[ka, st, ef1, a] \ ef2): StateError[ka, st, ef and ef1 and ef2, a] = 
         StateError((s, k) -> 
-            let StateError(ma1) = Graded.extendEff(upcast(identity), ma);
+            let StateError(ma1) = Graded.extendEff(identity, ma);
             match ma1(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let StateError(hdlr1) = Graded.extendEff(upcast(identity), hdlr(msg)); 
+                    let StateError(hdlr1) = Graded.extendEff(identity, hdlr(msg)); 
                     hdlr1(s, k)
                 }
             }
@@ -144,7 +144,7 @@ namespace Graded/StateError {
 
     pub def mapError(f: String -> String \ ef1, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1, a] = 
         StateError((s, k) -> 
-            apply1WithHandler(Graded.extendEff(upcast(identity), ma), s, a -> k(a), Graded.liftApp(upcast(identity), msg -> Err(f(msg))))
+            apply1WithHandler(Graded.extendEff(identity, ma), s, a -> k(a), Graded.liftApp(identity, msg -> Err(f(msg))))
         )
 
 

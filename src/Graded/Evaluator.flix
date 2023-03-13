@@ -110,7 +110,7 @@ namespace Graded/Evaluator {
     ///
     pub def runEvaluator(ma: Evaluator[a, st, ef, a], e: st): Result[String, a] \ ef =
         let Evaluator(f) = ma;
-        let cont = a -> Graded.liftApp(upcast(identity), Ok, a);
+        let cont = a -> Graded.liftApp(identity, Ok, a);
         f(e, cont)
 
 
@@ -120,14 +120,14 @@ namespace Graded/Evaluator {
 
     pub def map(f: a -> b \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, b] =
         Evaluator((e, k) ->
-            apply1(Graded.extendEff(upcast(identity), ma), e, a -> k(f(a)))
+            apply1(Graded.extendEff(identity, ma), e, a -> k(f(a)))
         )
 
     pub def ap(mf: Evaluator[ka, st, ef1, a -> b \ ef2], 
                 ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] =
         Evaluator((e, k) ->
-            apply1(Graded.extendEff(upcast(identity), mf), e, f ->
-                apply1(Graded.extendEff(upcast(identity), ma), e, a ->
+            apply1(Graded.extendEff(identity, mf), e, f ->
+                apply1(Graded.extendEff(identity, ma), e, a ->
                     k(f(a))))
         )
 
@@ -135,22 +135,22 @@ namespace Graded/Evaluator {
     pub def flatMap(f: a -> Evaluator[ka, st, ef1, b] \ ef2, 
                     ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] =
         Evaluator((e, k) ->
-            apply1(Graded.extendEff(upcast(identity), ma), e, a ->
-                apply1(Graded.extendEff(upcast(identity), f(a)), e, b ->
+            apply1(Graded.extendEff(identity, ma), e, a ->
+                apply1(Graded.extendEff(identity, f(a)), e, b ->
                     k(b)))
         )
 
     pub def throwError(msg: String): Evaluator[ka, st, ef, a] = 
-        Evaluator((_, _) -> Graded.liftApp(upcast(identity), Err, msg))
+        Evaluator((_, _) -> Graded.liftApp(identity, Err, msg))
 
     pub def catchError(ma: Evaluator[ka, st, ef, a], 
                         hdlr: String -> Evaluator[ka, st, ef1, a] \ ef2): Evaluator[ka, st, ef and ef1 and ef2, a] = 
         Evaluator((e, k) -> 
-            let Evaluator(ma1) = Graded.extendEff(upcast(identity), ma);
+            let Evaluator(ma1) = Graded.extendEff(identity, ma);
             match ma1(e, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let Evaluator(hdlr1) = Graded.extendEff(upcast(identity), hdlr(msg)); 
+                    let Evaluator(hdlr1) = Graded.extendEff(identity, hdlr(msg)); 
                     hdlr1(e, k)
                 }
             }
@@ -158,7 +158,7 @@ namespace Graded/Evaluator {
 
     pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
         Evaluator((e, k) -> 
-            apply1WithHandler(Graded.extendEff(upcast(identity), ma), e, a -> k(a), Graded.liftApp(upcast(identity), msg -> Err(f(msg))))
+            apply1WithHandler(Graded.extendEff(identity, ma), e, a -> k(a), Graded.liftApp(identity, msg -> Err(f(msg))))
         )
 
 
@@ -166,7 +166,7 @@ namespace Graded/Evaluator {
 
     pub def orelse(ma: Evaluator[ka, st, ef1, a], mb: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2, a] =
         Evaluator((e, k) ->
-            apply1WithHandler(Graded.extendEff(upcast(identity), ma), e, a -> k(a), _ -> apply1(Graded.extendEff(upcast(identity), mb), e, b -> k(b)))
+            apply1WithHandler(Graded.extendEff(identity, ma), e, a -> k(a), _ -> apply1(Graded.extendEff(identity, mb), e, b -> k(b)))
         )
 
 

@@ -95,25 +95,25 @@ namespace Graded/EnvError {
             case Ok(a)    => Ok(a)
         }
 
-    ///
-    /// The first arg is just a proxy - we can use `upcast(identity)` to have it filled in 
-    /// by the typechecker.
-    /// Ideally we would want something like `liftApp(@ \ ef, getMessage, ex))` - a macro rather than 
-    /// a function where we can supply an effect type as the first argument.
-    ///
-    def liftEff(_: Unit -> Unit \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, a] = 
-        unsafe_cast ma as EnvError[ka, env, ef and ef1, a]
+    // ///
+    // /// The first arg is just a proxy - we can use `identity` to have it filled in 
+    // /// by the typechecker.
+    // /// Ideally we would want something like `liftApp(@ \ ef, getMessage, ex))` - a macro rather than 
+    // /// a function where we can supply an effect type as the first argument.
+    // ///
+    // def liftEff(_: Unit -> Unit \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, a] = 
+    //     unsafe_cast ma as EnvError[ka, env, ef and ef1, a]
 
-    /// As per liftEff...
-    def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef, x: a): b \ {ef, ef1} =
-        unsafe_cast f(x) as b \ {ef, ef1}
+    // /// As per liftEff...
+    // def liftApp(_: Unit -> Unit \ ef1, f: a -> b \ ef, x: a): b \ {ef, ef1} =
+    //     unsafe_cast f(x) as b \ {ef, ef1}
 
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runEnvError(ma: EnvError[a, env, ef, a], e: env): Result[String, a] \ ef =
         let EnvError(f) = ma;
-        let cont = a -> liftApp(upcast(identity), Ok, a);
+        let cont = a -> Graded.liftApp(identity, Ok, a);
         f(e, cont)
 
 
@@ -122,35 +122,35 @@ namespace Graded/EnvError {
 
     pub def map(f: a -> b \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, b] =
         EnvError((e, k) ->
-            apply1(liftEff(upcast(identity), ma), e, a -> k(f(a)))
+            apply1(Graded.extendEff(identity, ma), e, a -> k(f(a)))
         )
 
     pub def ap(mf: EnvError[ka, env, ef1, a -> b \ ef2], ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] =
         EnvError((e, k) ->
-            apply1(liftEff(upcast(identity), mf), e, f ->
-                apply1(liftEff(upcast(identity), ma), e, a ->
+            apply1(Graded.extendEff(identity, mf), e, f ->
+                apply1(Graded.extendEff(identity, ma), e, a ->
                     k(f(a))))
         )
 
 
     pub def flatMap(f: a -> EnvError[ka, env, ef1, b] \ ef2, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] =
         EnvError((e, k) ->
-            apply1(liftEff(upcast(identity), ma), e, a ->
-                apply1(liftEff(upcast(identity), f(a)), e, b ->
+            apply1(Graded.extendEff(identity, ma), e, a ->
+                apply1(Graded.extendEff(identity, f(a)), e, b ->
                     k(b)))
         )
 
     pub def throwError(msg: String): EnvError[ks, env, sf, a] = 
-        EnvError((_, _) -> liftApp(upcast(identity), Err, msg))
+        EnvError((_, _) -> Graded.liftApp(identity, Err, msg))
 
     pub def catchError(ma: EnvError[ka, env, ef, a], 
                         hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef and ef1 and ef2, a] = 
         EnvError((e, k) -> 
-            let EnvError(ma1) = liftEff(upcast(identity), ma);
+            let EnvError(ma1) = Graded.extendEff(identity, ma);
             match ma1(e, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let EnvError(hdlr1) = liftEff(upcast(identity), hdlr(msg)); 
+                    let EnvError(hdlr1) = Graded.extendEff(identity, hdlr(msg)); 
                     hdlr1(e, k)
                 }
             }
@@ -158,14 +158,14 @@ namespace Graded/EnvError {
 
     pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, a] = 
         EnvError((e, k) -> 
-            apply1WithHandler(liftEff(upcast(identity), ma), e, a -> k(a), liftApp(upcast(identity), msg -> Err(f(msg))))
+            apply1WithHandler(Graded.extendEff(identity, ma), e, a -> k(a), Graded.liftApp(identity, msg -> Err(f(msg))))
         )
 
     pub def empty(): EnvError[ka, env, ef, a] = throwError("empty")
 
     pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 and ef2, a] =
         EnvError((e, k) ->
-            apply1WithHandler(liftEff(upcast(identity), ma), e, a -> k(a), _ -> apply1(liftEff(upcast(identity), mb), e, b -> k(b)))
+            apply1WithHandler(Graded.extendEff(identity, ma), e, a -> k(a), _ -> apply1(Graded.extendEff(identity, mb), e, b -> k(b)))
         )
 
 
@@ -212,7 +212,7 @@ namespace Graded/EnvError {
 
     pub def localEnv(f: env -> env1 \ ef1, ma: EnvError[ka, env1, ef, a]): EnvError[ka, env, ef and ef1, a] = 
         EnvError((e, k) -> 
-            apply1(liftEff(upcast(identity), ma), f(e), a1 -> 
+            apply1(Graded.extendEff(identity, ma), f(e), a1 -> 
                 k(a1))
         )
 
