@@ -25,8 +25,8 @@ namespace Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    /// Ideally st would be st: Region -> Type with r: Region but this ntly causes a compiler
-    /// crash (Flix issue #2113)
+    /// Ideally st would be st: Region -> Type with r: Region but this currently causes 
+    /// a compiler crash (Flix issue #2113)
     ///    
     pub enum Evaluator[ka: Type, st: Type, ef: Bool, a: Type](
         st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef

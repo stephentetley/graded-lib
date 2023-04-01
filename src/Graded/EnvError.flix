@@ -204,7 +204,7 @@ namespace Graded/EnvError {
             } 
         )
 
-    pub def askEnv(): EnvError[ka, env, Pure, env] = 
+    pub def askEnv(): EnvError[ka, env, ef, env] = 
         EnvError((e, k) -> k(e))
 
     pub def asksEnv(f: env -> a \ ef): EnvError[ka, env, ef, a] = 
