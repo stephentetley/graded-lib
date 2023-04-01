@@ -61,7 +61,7 @@ namespace Graded/Codensity {
     ///
     pub def runCodensity(ma: Codensity[a, ef, a]): a \ ef =
         let Codensity(f) = ma;
-        let cont = a -> Graded.liftApp(identity, identity, a);
+        let cont = a -> checked_ecast(a);
         f(cont)
 
     pub def point(x: a): Codensity[ka, ef, a] = 
@@ -69,22 +69,22 @@ namespace Graded/Codensity {
 
     pub def map(f: a -> b \ ef, ma: Codensity[ka, ef1, a]): Codensity[ka, ef1 and ef, b] =
         Codensity(k ->
-            apply1(Graded.extendEff(identity, ma), a -> {let b = f(a); k(b)})
+            apply1(unchecked_cast(ma as Codensity[ka, ef1 and ef, a]), a -> {let b = f(a); k(b)})
         )
 
     pub def ap(mf: Codensity[ka, ef1, a -> b \ ef2], ma: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] =
         Codensity(k ->
-            apply1(Graded.extendEff(identity, mf), f ->
-                apply1(Graded.extendEff(identity, ma), a ->
+            apply1(unchecked_cast(mf as Codensity[ka, ef and ef1 and ef2, a -> b \ ef2]), f ->
+                apply1(unchecked_cast(ma as Codensity[ka, ef and ef1 and ef2, a]), a ->
                     k(f(a))))
         )
 
     pub def flatMap(f: a -> Codensity[ka, ef1, b] \ ef2, ma: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] =
         Codensity(k ->
-            apply1(Graded.extendEff(identity, ma), a ->
-                apply1(Graded.extendEff(identity, f(a)), b ->
+            apply1(unchecked_cast(ma as Codensity[ka, ef and ef1 and ef2, a]), a ->
+                apply1(unchecked_cast(f(a) as Codensity[ka, ef and ef1 and ef2, b]), b ->
                     k(b)))
         )
-    
+
 
 }
