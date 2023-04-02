@@ -1,4 +1,4 @@
-// java -jar ..\bin\flix-master.jar .\test\run-state-error.flix .\src\*.flix .\src\Graded\*.flix
+// java -jar ..\bin\flix-master.jar .\temp\run-state-error.flix .\src\*.flix .\src\Graded\StateError.flix
 
 use Graded.StateError
 
@@ -23,8 +23,8 @@ pub def test02(): Unit \ IO =
 pub def action02(): StateError[ka, Int32, Pure, (Int32, Int32)] = 
     use Graded/StateError.{flatMap, get, put};
     use GradedApplicative.{point};
-    let* i = get();
-    let* _ = put(i + 10);
-    let* j = get();
-    point((i, j))
+    forM(i <- get();
+        put(i + 10);
+        j <- get())
+    yield ((i, j))
 

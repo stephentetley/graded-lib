@@ -56,6 +56,7 @@ namespace Graded/Codensity {
         let Codensity(ma1) = ma;
         ma1(k)
 
+
     ///
     /// Run Codensity
     ///
