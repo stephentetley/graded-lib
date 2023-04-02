@@ -96,15 +96,13 @@ namespace Graded/Builder {
             case Ok(a)    => Ok(a)
         }
 
-
-
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runBuilder(ma: Builder[a, st, ef, a], 
                         s: st): Result[String, a] \ ef =
         let Builder(f) = ma;
-        let cont = ans -> Graded.liftApp(identity, Ok, ans);
+        let cont = ans -> checked_ecast(Ok(ans));
         f(s, cont)
 
 
@@ -112,23 +110,23 @@ namespace Graded/Builder {
         Builder((_, k) -> k(x))
 
 
-    pub def map(f: a -> b \ ef, ma: Builder[ka, st, ef1, a]): Builder[ka, st, ef1 and ef, b] =
+    pub def map(f: a -> b \ ef, ma: Builder[ka, st, ef1, a]): Builder[ka, st, ef and ef1, b] =
         Builder((s, k) ->
-            apply1(Graded.extendEff(identity, ma), s, a -> {let b = f(a); k(b)})
+            apply1(unchecked_cast(ma as Builder[ka, st, ef and ef1, a]), s, a -> {let b = f(a); k(b)})
         )
 
     pub def ap(mf: Builder[ka, st, ef1, a -> b \ ef2], ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] =
         Builder((s, k) ->
-            apply1(Graded.extendEff(identity, mf), s, f1 ->
-                apply1(Graded.extendEff(identity,  ma), s, a1 ->
+            apply1(unchecked_cast(mf as Builder[ka, st, ef and ef1 and ef2, a -> b \ ef2]), s, f1 ->
+                apply1(unchecked_cast(ma as Builder[ka, st, ef and ef1 and ef2, a]), s, a1 ->
                     k(f1(a1))))
         )
 
 
-    pub def flatMap(f: a -> Builder[ka, st, ef1, b] \ ef, ma: Builder[ka, st, ef2, a]): Builder[ka, st, ef1 and ef2 and ef, b] =
+    pub def flatMap(f: a -> Builder[ka, st, ef1, b] \ ef2, ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] =
         Builder((s, k) ->
-            apply1(Graded.extendEff(identity, ma), s, a ->
-                apply1(Graded.extendEff(identity, f(a)), s, b ->
+            apply1(unchecked_cast(ma as Builder[ka, st, ef and ef1 and ef2, a]), s, a ->
+                apply1(unchecked_cast(f(a) as Builder[ka, st, ef and ef1 and ef2, b]), s, b ->
                     k(b)))
         )
 
@@ -137,29 +135,29 @@ namespace Graded/Builder {
         throwError("empty")
 
     pub def throwError(msg: String): Builder[ka, st, ef, a] = 
-        Builder((_, _) -> Graded.liftApp(identity, Err, msg))
+        Builder((_, _) -> checked_ecast(Err(msg)))
 
     pub def mapError(f: String -> String \ ef1, 
                         ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, a]= 
         Builder((s, k) -> 
-            apply1WithHandler(Graded.extendEff(identity, ma), s, a -> k(a), Graded.liftApp(identity, msg -> Err(f(msg))))
+            apply1WithHandler(unchecked_cast(ma as Builder[ka, st, ef and ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
 
     pub def catchError(ma: Builder[ka, st, ef, a], 
                         hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef and ef1 and ef2, a] = 
         Builder((s, k) -> 
-            let Builder(ma1) = Graded.extendEff(identity, ma);
+            let Builder(ma1) = unchecked_cast(ma as Builder[ka, st, ef and ef1 and ef2, a]);
             match ma1(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let Builder(hdlr1) = Graded.extendEff(identity, hdlr(msg)); 
+                    let Builder(hdlr1) = unchecked_cast(hdlr(msg) as Builder[ka, st, ef and ef1 and ef2, a]); 
                     hdlr1(s, k)
                 }
             }
         )
 
-    /// ideally something like > Err(liftApp(@ \ ef, getMessage, ex)) 
+    
     pub def liftGetter(f: st -> a \ ef): Builder[ka, st, ef, a] = 
         Builder((s, k) ->
             try {
@@ -168,7 +166,7 @@ namespace Graded/Builder {
             } catch {
                 case ex: ##java.lang.Exception => 
                     import java.lang.Throwable.getMessage(): String \ {};
-                    Err(Graded.liftApp(identity, getMessage, ex))
+                    Err(getMessage(ex))
             }            
         )
 
