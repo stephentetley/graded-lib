@@ -100,7 +100,7 @@ namespace Graded/EnvMutStateError {
                                 e: env,
                                 s: st): Result[String, a] \ ef =
         let EnvMutStateError(f) = ma;
-        let cont = a -> Graded.liftApp(identity, Ok, a);
+        let cont = a -> checked_ecast(Ok(a));
         f(e, s, cont)
 
 
@@ -109,14 +109,14 @@ namespace Graded/EnvMutStateError {
 
     pub def map(f: a -> b \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, b] =
         EnvMutStateError((e, s, k) ->
-            apply1(Graded.extendEff(identity, ma), e, s, a -> k(f(a)))
+            apply1(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef and ef1, a]), e, s, a -> k(f(a)))
         )
 
     pub def ap(mf: EnvMutStateError[ka, env, st, ef1, a -> b \ ef2], 
                 ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1 and ef2, b] =
         EnvMutStateError((e, s, k) ->
-            apply1(Graded.extendEff(identity, mf), e, s, f ->
-                apply1(Graded.extendEff(identity, ma), e, s, a ->
+            apply1(unchecked_cast(mf as EnvMutStateError[ka, env, st, ef and ef1 and ef2, a -> b \ ef2]), e, s, f ->
+                apply1(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef and ef1 and ef2, a]), e, s, a ->
                     k(f(a))))
         )
 
@@ -124,22 +124,22 @@ namespace Graded/EnvMutStateError {
     pub def flatMap(f: a -> EnvMutStateError[ka, env, st, ef1, b] \ ef2, 
                     ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1 and ef2, b] =
         EnvMutStateError((e, s, k) ->
-            apply1(Graded.extendEff(identity, ma), e, s, a ->
-                apply1(Graded.extendEff(identity, f(a)), e, s, b ->
+            apply1(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef and ef1 and ef2, a]), e, s, a ->
+                apply1(unchecked_cast(f(a) as EnvMutStateError[ka, env, st, ef and ef1 and ef2, b]), e, s, b ->
                     k(b)))
         )
 
     pub def throwError(msg: String): EnvMutStateError[ka, env, st, ef, a] = 
-        EnvMutStateError((_, _, _) -> Graded.liftApp(identity, Err, msg))
+        EnvMutStateError((_, _, _) -> checked_ecast(Err(msg)))
 
     pub def catchError(ma: EnvMutStateError[ka, env, st, ef, a], 
                         hdlr: String -> EnvMutStateError[ka, env, st, ef1, a] \ ef2): EnvMutStateError[ka, env, st, ef and ef1 and ef2, a] = 
         EnvMutStateError((e, s, k) -> 
-            let EnvMutStateError(ma1) = Graded.extendEff(identity, ma);
+            let EnvMutStateError(ma1) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef and ef1 and ef2, a]);
             match ma1(e, s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let EnvMutStateError(hdlr1) = Graded.extendEff(identity, hdlr(msg)); 
+                    let EnvMutStateError(hdlr1) = unchecked_cast(hdlr(msg) as EnvMutStateError[ka, env, st, ef and ef1 and ef2, a]); 
                     hdlr1(e, s, k)
                 }
             }
@@ -147,7 +147,7 @@ namespace Graded/EnvMutStateError {
 
     pub def mapError(f: String -> String \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, a] = 
         EnvMutStateError((e, s, k) -> 
-            apply1WithHandler(Graded.extendEff(identity, ma), e, s, a -> k(a), Graded.liftApp(identity, msg -> Err(f(msg))))
+            apply1WithHandler(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef and ef1, a]), e, s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
     pub def liftGetter(f: env -> st -> a \ ef): EnvMutStateError[ka, env, st, ef, a] = 
@@ -214,7 +214,7 @@ namespace Graded/EnvMutStateError {
 
     pub def localEnv(f: env -> env1 \ ef1, ma: EnvMutStateError[ka, env1, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, a] = 
         EnvMutStateError((e, s, k) -> 
-            apply1(Graded.extendEff(identity, ma), f(e), s, a1 -> 
+            apply1(unchecked_cast(ma as EnvMutStateError[ka, env1, st, ef and ef1, a]), f(e), s, a1 -> 
                 k(a1))
         )
 

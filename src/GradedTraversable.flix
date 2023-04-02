@@ -43,7 +43,7 @@ instance GradedTraversable[List] {
                     (f: a -> m[ef, b] \ ef1, l: List[a]): m[ef and ef1, List[b]] with GradedApplicative[m] =
         def loop(ll, k) = match ll {
             case Nil     => k(GradedApplicative.point(Nil))
-            case x :: xs => loop(xs, ks -> k(ListHelper.consA(Graded.captureEff(_ -> f(x)), ks)))
+            case x :: xs => loop(xs, ks -> k({let x1 = unchecked_cast(f(x) as m[ef and ef1, b] \ {}); ListHelper.consA(x1, ks)}))
         };       
         loop(l, identity)
 
