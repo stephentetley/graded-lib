@@ -127,7 +127,7 @@ namespace Graded/EnvError {
                     k(b)))
         )
 
-    pub def throwError(msg: String): EnvError[ks, env, sf, a] = 
+    pub def throwError(msg: String): EnvError[ka, env, ef, a] = 
         EnvError((_, _) -> checked_ecast(Err(msg)))
 
     pub def catchError(ma: EnvError[ka, env, ef, a], 

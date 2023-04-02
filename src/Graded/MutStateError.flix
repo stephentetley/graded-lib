@@ -23,7 +23,7 @@ namespace Graded {
     /// `ka` is the continuation answer type
     ///
     ///
-    /// Ideally st would be st: Region -> Type with r: Region but this ntly causes a compiler
+    /// Ideally st would be st: Region -> Type with r: Region but this currently causes a compiler
     /// crash (Flix issue #2113)
     /// 
     pub enum MutStateError[ka: Type, st: Type, ef: Bool, a: Type](
