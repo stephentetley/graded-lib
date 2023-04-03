@@ -153,8 +153,13 @@ namespace Graded/CodensityError {
                 apply1(unchecked_cast(mb as CodensityError[ka, ef1 and ef2, a]), b -> k(b)))
         )
 
-    pub def liftEff(f: Unit -> a \ ef): CodensityError[ka, ef, a] = 
+    pub def liftEffect(f: Unit -> a \ ef): CodensityError[ka, ef, a] = 
         CodensityError(k -> k(f()))
 
+    pub def liftEffectResult(f: Unit -> Result[String, a] \ ef): CodensityError[ka, ef, a] = 
+        CodensityError(k -> match f() { 
+            case Ok(a)    => k(a)
+            case Err(msg) => Err(msg)
+        })
 
 }
