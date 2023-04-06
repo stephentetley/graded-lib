@@ -15,7 +15,7 @@
  */
 
 
-namespace Graded {
+mod Graded {
 
     ///
     /// Codensity (CPS) / Error monad.
@@ -69,7 +69,7 @@ namespace Graded {
 
 }
 
-namespace Graded/CodensityError {
+mod Graded.CodensityError {
 
     use Graded.CodensityError
     use Graded.CodensityError.{CodensityError}

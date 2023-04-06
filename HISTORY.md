@@ -1,3 +1,6 @@
+### v0.3.0
+   Changed to `mod` rather than `namespace`.
+
 ### v0.2.0
    Added Codensity and CodensityError.
    Removed Graded (use Flix casts directly instead).

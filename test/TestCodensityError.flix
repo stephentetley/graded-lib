@@ -1,8 +1,8 @@
 
-namespace TestCodensityError {
+mod TestCodensityError {
 
     use Graded.CodensityError
-    use Graded/CodensityError.{runCodensityError}
+    use Graded.CodensityError.{runCodensityError}
     use GradedApplicative.{point}
 
     @test

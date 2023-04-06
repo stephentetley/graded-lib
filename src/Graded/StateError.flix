@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-namespace Graded {
+mod Graded {
 
     ///
     /// The StateError monad is in the codensity style to be stack safe.
@@ -63,7 +63,7 @@ namespace Graded {
 
 }
 
-namespace Graded/StateError {
+mod Graded.StateError {
 
 
     use Graded.StateError

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-namespace Graded {
+mod Graded {
 
     ///
     /// Just a Codensity monad graded with an effect
@@ -42,7 +42,7 @@ namespace Graded {
 
 }
 
-namespace Graded/Codensity {
+mod Graded.Codensity {
 
 
     use Graded.Codensity

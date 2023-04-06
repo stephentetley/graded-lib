@@ -1,8 +1,8 @@
 [package]
 name        = "graded-lib"
 description = "Experimental Flix library for graded functors, applicatives and monads."
-version     = "0.2.0"
-flix        = "0.35.0"
+version     = "0.3.0"
+flix        = "0.36.0"
 license     = "Apache-2.0"
 authors     = ["Stephen Tetley <stephen.tetley@gmail.com>"]
 

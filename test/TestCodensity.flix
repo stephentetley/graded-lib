@@ -1,7 +1,7 @@
 
-namespace TestCodensity {
+mod TestCodensity {
 
-    use Graded/Codensity.{runCodensity}
+    use Graded.Codensity.{runCodensity}
     use GradedApplicative.{point}
 
     @test

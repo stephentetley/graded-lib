@@ -15,7 +15,7 @@
  */
 
 
-namespace Graded {
+mod Graded {
 
     ///
     /// Reader-Error like monad where the environment is "read-only mutable state" 
@@ -77,7 +77,7 @@ namespace Graded {
 
 }
 
-namespace Graded/Evaluator {
+mod Graded.Evaluator {
 
     use Graded.Evaluator
     use Graded.Evaluator.{Evaluator}

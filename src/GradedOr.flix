@@ -24,7 +24,7 @@ pub class GradedOr[m: Bool -> Type -> Type] with GradedMonad[m] {
 
 }
 
-namespace GradedOr {
+mod GradedOr {
 
     use GradedFunctor.{<$>}
 

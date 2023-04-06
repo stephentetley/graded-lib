@@ -29,7 +29,7 @@ pub class GradedError[m: Bool -> Type -> Type] with GradedMonad[m] {
 
 }
 
-namespace GradedError {
+mod GradedError {
 
     use GradedApplicative.point;
     

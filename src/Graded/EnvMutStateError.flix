@@ -15,7 +15,7 @@
  */
 
 
-namespace Graded {
+mod Graded {
 
     ///
     /// Mutable State (no local), Env/Reader (with local), and Error 
@@ -66,7 +66,7 @@ namespace Graded {
 
 }
 
-namespace Graded/EnvMutStateError {
+mod Graded.EnvMutStateError {
 
     use Graded.EnvMutStateError
     use Graded.EnvMutStateError.{EnvMutStateError}

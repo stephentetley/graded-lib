@@ -19,7 +19,7 @@ pub class GradedFunctor[m: Bool -> Type -> Type] {
 }
 
 
-namespace GradedFunctor {
+mod GradedFunctor {
 
     ///
     /// Replaces the value `a` in `ma` by the given value `x` preserving the structure of `ma`.

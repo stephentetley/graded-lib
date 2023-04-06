@@ -15,7 +15,7 @@
  */
 
 
-namespace Graded {
+mod Graded {
 
     ///
     /// Reader and Error monad in codensity style to be stack safe.
@@ -69,7 +69,7 @@ namespace Graded {
 
 }
 
-namespace Graded/EnvError {
+mod Graded.EnvError {
 
     use Graded.EnvError
     use Graded.EnvError.{EnvError}

@@ -49,7 +49,7 @@ instance GradedTraversable[List] {
 
 }
 
-namespace ListHelper {
+mod ListHelper {
 
     pub def consA[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type]
                 (mx: m[ef1, a], ml: m[ef, List[a]]): m[ef and ef1, List[a]] with GradedApplicative[m] =

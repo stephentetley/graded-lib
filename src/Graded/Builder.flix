@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-namespace Graded {
+mod Graded {
 
 
     ///
@@ -72,7 +72,7 @@ namespace Graded {
 
 }
 
-namespace Graded/Builder {
+mod Graded.Builder {
 
 
     use Graded.Builder

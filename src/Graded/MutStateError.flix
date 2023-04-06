@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-namespace Graded {
+mod Graded {
 
 
     ///
@@ -71,7 +71,7 @@ namespace Graded {
 
 }
 
-namespace Graded/MutStateError {
+mod Graded.MutStateError {
 
 
     use Graded.MutStateError

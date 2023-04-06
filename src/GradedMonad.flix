@@ -25,7 +25,7 @@ pub class GradedMonad[m: Bool -> Type -> Type] with GradedApplicative[m] {
 }
 
 
-namespace GradedMonad {
+mod GradedMonad {
 
 
 

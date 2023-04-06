@@ -59,7 +59,7 @@ pub class GradedApplicative[m: Bool -> Type -> Type] with GradedFunctor[m] {
 }
 
 
-namespace GradedApplicative {
+mod GradedApplicative {
 
     ///
     /// Chain two graded applicative actions, returns the product of their results.
