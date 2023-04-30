@@ -29,22 +29,22 @@ mod Graded {
 
     instance GradedFunctor[EnvMutStateError[ka, env, st]] { 
         pub def map(f: a -> b \ ef1, m: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, b] = 
-            Graded/EnvMutStateError.map(f, m)
+            Graded.EnvMutStateError.map(f, m)
     }
 
     instance GradedApplicative[EnvMutStateError[ka, env, st]] { 
         pub def point(x: a): EnvMutStateError[ka, env, st, ef, a] = 
-            Graded/EnvMutStateError.point(x)
+            Graded.EnvMutStateError.point(x)
 
         pub def ap(f: EnvMutStateError[ka, env, st, ef1, a -> b \ ef2], 
                     m: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1 and ef2, b] = 
-            Graded/EnvMutStateError.ap(f, m)
+            Graded.EnvMutStateError.ap(f, m)
     }
 
     instance GradedMonad[EnvMutStateError[ka, env, st]] { 
         pub def flatMap(k: a -> EnvMutStateError[ka, env, st, ef1, b] \ ef2, 
                         m: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1 and ef2, b] = 
-            Graded/EnvMutStateError.flatMap(k, m)
+            Graded.EnvMutStateError.flatMap(k, m)
     }
 
 
@@ -52,15 +52,15 @@ mod Graded {
     
     instance GradedError[EnvMutStateError[ka, env, st]] { 
         pub def throwError(msg: String): EnvMutStateError[ka, env, st, ef, a] =
-            Graded/EnvMutStateError.throwError(msg)
+            Graded.EnvMutStateError.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, 
                             ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, a] = 
-            Graded/EnvMutStateError.mapError(f, ma)
+            Graded.EnvMutStateError.mapError(f, ma)
 
         pub def catchError(ma: EnvMutStateError[ka, env, st, ef, a], 
                             hdlr: String -> EnvMutStateError[ka, env, st, ef1, a] \ ef2): EnvMutStateError[ka, env, st, ef and ef1 and ef2, a] = 
-            Graded/EnvMutStateError.catchError(ma, hdlr)
+            Graded.EnvMutStateError.catchError(ma, hdlr)
     }  
 
 

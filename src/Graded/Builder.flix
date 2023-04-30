@@ -31,42 +31,42 @@ mod Graded {
 
     instance GradedFunctor[Builder[ka, st]] { 
         pub def map(f: a -> b \ ef1, x: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, b] = 
-            Graded/Builder.map(f, x)
+            Graded.Builder.map(f, x)
     }
 
     instance GradedApplicative[Builder[ka, st]] { 
         pub def point(x: a): Builder[ka, st, ef, a] = 
-            Graded/Builder.point(x)
+            Graded.Builder.point(x)
 
         pub def ap(f: Builder[ka, st, ef1, a -> b \ ef2], 
                     x: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] = 
-            Graded/Builder.ap(f, x)
+            Graded.Builder.ap(f, x)
     }
 
     instance GradedMonad[Builder[ka, st]] { 
         pub def flatMap(k: a -> Builder[ka, st, ef1, b] \ ef, 
                         x: Builder[ka, st, ef2, a]): Builder[ka, st, ef1 and ef2 and ef, b] = 
-            Graded/Builder.flatMap(k, x)
+            Graded.Builder.flatMap(k, x)
     }
 
     // Orelse not available for Builder 
 
 
     instance GradedZero[Builder[ka, st]] { 
-        pub def empty(): Builder[ka, st, ef, a] = Graded/Builder.empty()
+        pub def empty(): Builder[ka, st, ef, a] = Graded.Builder.empty()
     }
 
     instance GradedError[Builder[ka, st]] { 
         pub def throwError(msg: String): Builder[ka, st, ef, a] =
-            Graded/Builder.throwError(msg)
+            Graded.Builder.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, 
                         ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, a] = 
-            Graded/Builder.mapError(f, ma)
+            Graded.Builder.mapError(f, ma)
 
         pub def catchError(ma: Builder[ka, st, ef, a], 
                             hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef and ef1 and ef2, a] = 
-            Graded/Builder.catchError(ma, hdlr)
+            Graded.Builder.catchError(ma, hdlr)
     }  
 
 

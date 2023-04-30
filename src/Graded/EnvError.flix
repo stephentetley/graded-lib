@@ -27,43 +27,43 @@ mod Graded {
 
     instance GradedFunctor[EnvError[ka, env]] { 
         pub def map(f: a -> b \ ef1, m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, b] = 
-            Graded/EnvError.map(f, m)
+            Graded.EnvError.map(f, m)
     }
 
     instance GradedApplicative[EnvError[ka, env]] { 
         pub def point(x: a): EnvError[ka, env, ef, a] = 
-            Graded/EnvError.point(x)
+            Graded.EnvError.point(x)
 
         pub def ap(f: EnvError[ka, env, ef1, a -> b \ ef2], m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] = 
-            Graded/EnvError.ap(f, m)
+            Graded.EnvError.ap(f, m)
     }
 
     instance GradedMonad[EnvError[ka, env]] { 
         pub def flatMap(k: a -> EnvError[ka, env, ef1, b] \ ef2, m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] = 
-            Graded/EnvError.flatMap(k, m)
+            Graded.EnvError.flatMap(k, m)
     }
 
     instance GradedZero[EnvError[ka, env]] { 
         pub def empty(): EnvError[ka, env, ef, a] = 
-            Graded/EnvError.empty()
+            Graded.EnvError.empty()
     }
 
     // Orelse available for Evaluator because it is expected to only be reading the state
 
     instance GradedOr[EnvError[ka, env]] { 
         pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 and ef2, a] =
-            Graded/EnvError.orelse(ma, mb)
+            Graded.EnvError.orelse(ma, mb)
     }
     
     instance GradedError[EnvError[ka, env]] { 
         pub def throwError(msg: String): EnvError[ka, env, ef, a] =
-            Graded/EnvError.throwError(msg)
+            Graded.EnvError.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, a] = 
-            Graded/EnvError.mapError(f, ma)
+            Graded.EnvError.mapError(f, ma)
 
         pub def catchError(ma: EnvError[ka, env, ef, a], hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef and ef1 and ef2, a] = 
-            Graded/EnvError.catchError(ma, hdlr)
+            Graded.EnvError.catchError(ma, hdlr)
     }  
 
 

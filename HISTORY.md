@@ -1,3 +1,7 @@
+### v0.3.1
+   Added EnvStateError.
+   Changed to use dot as namespace sparator.
+
 ### v0.3.0
    Changed to `mod` rather than `namespace`.
 

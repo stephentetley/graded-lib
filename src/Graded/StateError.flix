@@ -26,38 +26,38 @@ mod Graded {
 
     instance GradedFunctor[StateError[ka, st]] { 
         pub def map(f: a -> b \ ef1, m: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1, b] = 
-            Graded/StateError.map(f, m)
+            Graded.StateError.map(f, m)
     }
 
     instance GradedApplicative[StateError[ka, st]] { 
-        pub def point(x: a): StateError[ka, st, ef, a] = Graded/StateError.point(x)
+        pub def point(x: a): StateError[ka, st, ef, a] = Graded.StateError.point(x)
 
         pub def ap(f: StateError[ka, st, ef1, a -> b \ ef2], m: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1 and ef2, b] = 
-            Graded/StateError.ap(f, m)
+            Graded.StateError.ap(f, m)
     }
 
     instance GradedMonad[StateError[ka, st]] { 
         pub def flatMap(k: a -> StateError[ka, st, ef1, b] \ ef2, m: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1 and ef2, b] = 
-            Graded/StateError.flatMap(k, m)
+            Graded.StateError.flatMap(k, m)
     }
 
     // Orelse available for StateError because it is expected to only be reading the state
 
     instance GradedOr[StateError[ka, st]] { 
         pub def orelse(ma: StateError[ka, st, ef1, a], mb: StateError[ka, st, ef2, a]): StateError[ka, st, ef1 and ef2, a] =
-            Graded/StateError.orelse(ma, mb)
+            Graded.StateError.orelse(ma, mb)
     }
 
 
     instance GradedError[StateError[ka, st]] { 
         pub def throwError(msg: String): StateError[ka, st, ef, a] =
-            Graded/StateError.throwError(msg)
+            Graded.StateError.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1, a] = 
-            Graded/StateError.mapError(f, ma)
+            Graded.StateError.mapError(f, ma)
 
         pub def catchError(ma: StateError[ka, st, ef, a], hdlr: String -> StateError[ka, st, ef1, a] \ ef2): StateError[ka, st, ef and ef1 and ef2, a] = 
-            Graded/StateError.catchError(ma, hdlr)
+            Graded.StateError.catchError(ma, hdlr)
     }  
 
 
@@ -102,7 +102,7 @@ mod Graded.StateError {
     pub def point(x: a): StateError[ka, st, ef, a] = 
         StateError((s, k) -> k(x, s))
 
-    pub def map(f: a -> b \ ef, ma: StateError[ka, st, ef1, a]): StateError[ka, st, ef and ef1, b] =
+    pub def map(f: a -> b \ ef1, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef and ef1, b] =
         StateError((s, k) ->
             apply1(unchecked_cast(ma as StateError[ka, st, ef and ef1, a]), s, (a, s1) -> {let b = f(a); k(b, s1)})
         )

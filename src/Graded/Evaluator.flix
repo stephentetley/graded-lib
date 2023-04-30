@@ -35,43 +35,43 @@ mod Graded {
 
     instance GradedFunctor[Evaluator[ka, st]] { 
         pub def map(f: a -> b \ ef1, m: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, b] = 
-            Graded/Evaluator.map(f, m)
+            Graded.Evaluator.map(f, m)
     }
 
     instance GradedApplicative[Evaluator[ka, st]] { 
         pub def point(x: a): Evaluator[ka, st, ef, a] = 
-            Graded/Evaluator.point(x)
+            Graded.Evaluator.point(x)
 
         pub def ap(f: Evaluator[ka, st, ef1, a -> b \ ef2], m: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] = 
-            Graded/Evaluator.ap(f, m)
+            Graded.Evaluator.ap(f, m)
     }
 
     instance GradedMonad[Evaluator[ka, st]] { 
         pub def flatMap(k: a -> Evaluator[ka, st, ef1, b] \ ef2, m: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] = 
-            Graded/Evaluator.flatMap(k, m)
+            Graded.Evaluator.flatMap(k, m)
     }
 
     instance GradedZero[Evaluator[ka, st]] { 
         pub def empty(): Evaluator[ka, st, ef, a] = 
-            Graded/Evaluator.empty()
+            Graded.Evaluator.empty()
     }
 
     // Orelse available for Evaluator because it is expected to only be reading the state
 
     instance GradedOr[Evaluator[ka, st]] { 
         pub def orelse(ma: Evaluator[ka, st, ef1, a], mb: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2, a] =
-            Graded/Evaluator.orelse(ma, mb)
+            Graded.Evaluator.orelse(ma, mb)
     }
     
     instance GradedError[Evaluator[ka, st]] { 
         pub def throwError(msg: String): Evaluator[ka, st, ef, a] =
-            Graded/Evaluator.throwError(msg)
+            Graded.Evaluator.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
-            Graded/Evaluator.mapError(f, ma)
+            Graded.Evaluator.mapError(f, ma)
 
         pub def catchError(ma: Evaluator[ka, st, ef, a], hdlr: String -> Evaluator[ka, st, ef1, a] \ ef2): Evaluator[ka, st, ef and ef1 and ef2, a] = 
-            Graded/Evaluator.catchError(ma, hdlr)
+            Graded.Evaluator.catchError(ma, hdlr)
     }  
 
 

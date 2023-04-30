@@ -33,39 +33,39 @@ mod Graded {
     instance GradedFunctor[MutStateError[ka, st]] { 
         pub def map(f: a -> b \ ef1, 
                     x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, b] = 
-            Graded/MutStateError.map(f, x)
+            Graded.MutStateError.map(f, x)
     }
 
     instance GradedApplicative[MutStateError[ka, st]] { 
-        pub def point(x: a): MutStateError[ka, st, ef, a] = Graded/MutStateError.point(x)
+        pub def point(x: a): MutStateError[ka, st, ef, a] = Graded.MutStateError.point(x)
 
         pub def ap(f: MutStateError[ka, st, ef1, a -> b \ ef2], 
                     x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] = 
-            Graded/MutStateError.ap(f, x)
+            Graded.MutStateError.ap(f, x)
     }
 
     instance GradedMonad[MutStateError[ka, st]] { 
         pub def flatMap(k: a -> MutStateError[ka, st, ef1, b] \ ef, 
                         x: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 and ef2 and ef, b] = 
-            Graded/MutStateError.flatMap(k, x)
+            Graded.MutStateError.flatMap(k, x)
     }
 
 
     instance GradedZero[MutStateError[ka, st]] { 
-        pub def empty(): MutStateError[ka, st, ef, a] = Graded/MutStateError.empty()
+        pub def empty(): MutStateError[ka, st, ef, a] = Graded.MutStateError.empty()
     }
 
     instance GradedError[MutStateError[ka, st]] { 
         pub def throwError(msg: String): MutStateError[ka, st, ef, a] =
-            Graded/MutStateError.throwError(msg)
+            Graded.MutStateError.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, 
                         ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a] = 
-            Graded/MutStateError.mapError(f, ma)
+            Graded.MutStateError.mapError(f, ma)
 
         pub def catchError(ma: MutStateError[ka, st, ef, a], 
                             hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
-            Graded/MutStateError.catchError(ma, hdlr)
+            Graded.MutStateError.catchError(ma, hdlr)
     }  
 
 

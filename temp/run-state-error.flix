@@ -12,16 +12,16 @@ pub def main(): Int32 \ IO =
 pub def test01(): Unit \ IO = 
     use GradedApplicative.{point};
     println("test01");
-    Graded/StateError.runStateError(point(5), 0) |> println
+    Graded.StateError.runStateError(point(5), 0) |> println
 
 pub def test02(): Unit \ IO = 
     use GradedApplicative.{point};
     use GradedError.{catchError, throwError};
     println("test02");
-    Graded/StateError.runStateError(action02(), 0) |> println    
+    Graded.StateError.runStateError(action02(), 0) |> println    
 
 pub def action02(): StateError[ka, Int32, Pure, (Int32, Int32)] = 
-    use Graded/StateError.{flatMap, get, put};
+    use Graded.StateError.{flatMap, get, put};
     use GradedApplicative.{point};
     forM(i <- get();
         put(i + 10);

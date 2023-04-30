@@ -24,19 +24,19 @@ mod Graded {
 
     instance GradedFunctor[Codensity[ka]] { 
         pub def map(f: a -> b \ ef1, m: Codensity[ka, ef, a]): Codensity[ka, ef and ef1, b] = 
-            Graded/Codensity.map(f, m)
+            Graded.Codensity.map(f, m)
     }
 
     instance GradedApplicative[Codensity[ka]] { 
-        pub def point(x: a): Codensity[ka, ef, a] = Graded/Codensity.point(x)
+        pub def point(x: a): Codensity[ka, ef, a] = Graded.Codensity.point(x)
 
         pub def ap(f: Codensity[ka, ef1, a -> b \ ef2], m: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] = 
-            Graded/Codensity.ap(f, m)
+            Graded.Codensity.ap(f, m)
     }
 
     instance GradedMonad[Codensity[ka]] { 
         pub def flatMap(k: a -> Codensity[ka, ef1, b] \ ef2, m: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] = 
-            Graded/Codensity.flatMap(k, m)
+            Graded.Codensity.flatMap(k, m)
     }
 
 

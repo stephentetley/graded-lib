@@ -27,43 +27,43 @@ mod Graded {
 
     instance GradedFunctor[CodensityError[ka]] { 
         pub def map(f: a -> b \ ef1, m: CodensityError[ka, ef, a]): CodensityError[ka, ef and ef1, b] = 
-            Graded/CodensityError.map(f, m)
+            Graded.CodensityError.map(f, m)
     }
 
     instance GradedApplicative[CodensityError[ka]] { 
         pub def point(x: a): CodensityError[ka, ef, a] = 
-            Graded/CodensityError.point(x)
+            Graded.CodensityError.point(x)
 
         pub def ap(f: CodensityError[ka, ef1, a -> b \ ef2], m: CodensityError[ka, ef, a]): CodensityError[ka, ef and ef1 and ef2, b] = 
-            Graded/CodensityError.ap(f, m)
+            Graded.CodensityError.ap(f, m)
     }
 
     instance GradedMonad[CodensityError[ka]] { 
         pub def flatMap(k: a -> CodensityError[ka, ef1, b] \ ef2, m: CodensityError[ka, ef, a]): CodensityError[ka, ef and ef1 and ef2, b] = 
-            Graded/CodensityError.flatMap(k, m)
+            Graded.CodensityError.flatMap(k, m)
     }
 
     instance GradedZero[CodensityError[ka]] { 
         pub def empty(): CodensityError[ka, ef, a] = 
-            Graded/CodensityError.empty()
+            Graded.CodensityError.empty()
     }
 
     // Orelse available for Evaluator because it is expected to only be reading the state
 
     instance GradedOr[CodensityError[ka]] { 
         pub def orelse(ma: CodensityError[ka, ef1, a], mb: CodensityError[ka, ef2, a]): CodensityError[ka, ef1 and ef2, a] =
-            Graded/CodensityError.orelse(ma, mb)
+            Graded.CodensityError.orelse(ma, mb)
     }
     
     instance GradedError[CodensityError[ka]] { 
         pub def throwError(msg: String): CodensityError[ka, ef, a] =
-            Graded/CodensityError.throwError(msg)
+            Graded.CodensityError.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef and ef1, a] = 
-            Graded/CodensityError.mapError(f, ma)
+            Graded.CodensityError.mapError(f, ma)
 
         pub def catchError(ma: CodensityError[ka, ef, a], hdlr: String -> CodensityError[ka, ef1, a] \ ef2): CodensityError[ka, ef and ef1 and ef2, a] = 
-            Graded/CodensityError.catchError(ma, hdlr)
+            Graded.CodensityError.catchError(ma, hdlr)
     }  
 
 
