@@ -72,6 +72,9 @@ mod Graded {
 
         pub def catchError(ma: Evaluator[ka, st, ef, a], hdlr: String -> Evaluator[ka, st, ef1, a] \ ef2): Evaluator[ka, st, ef and ef1 and ef2, a] = 
             Graded.Evaluator.catchError(ma, hdlr)
+        
+        pub def reifyError(ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef, Result[String, a]] = 
+            Graded.Evaluator.reifyError(ma)
     }  
 
 
@@ -161,6 +164,10 @@ mod Graded.Evaluator {
             apply1WithHandler(unchecked_cast(ma as Evaluator[ka, st, ef and ef1, a]), e, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
+    pub def reifyError(ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef, Result[String, a]] = 
+        Evaluator((e, k) -> 
+            apply1WithHandler(ma, e, a -> k(Ok(a)), msg -> k(Err(msg)))
+        )
 
     pub def empty(): Evaluator[ka, st, ef, a] = throwError("empty")
 

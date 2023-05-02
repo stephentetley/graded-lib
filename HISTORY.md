@@ -1,3 +1,6 @@
+### v0.4.0 (pending)
+   Addded `reifyError` to `GradedError` class.
+
 ### v0.3.1
    Added EnvStateError.
    Changed to use dot as namespace sparator.

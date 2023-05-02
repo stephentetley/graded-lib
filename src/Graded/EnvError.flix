@@ -64,6 +64,9 @@ mod Graded {
 
         pub def catchError(ma: EnvError[ka, env, ef, a], hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef and ef1 and ef2, a] = 
             Graded.EnvError.catchError(ma, hdlr)
+
+        pub def reifyError(ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef, Result[String, a]] = 
+            Graded.EnvError.reifyError(ma)
     }  
 
 
@@ -146,6 +149,11 @@ mod Graded.EnvError {
     pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, a] = 
         EnvError((e, k) -> 
             apply1WithHandler(unchecked_cast(ma as EnvError[ka, env, ef and ef1, a]), e, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+        )
+
+    pub def reifyError(ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef, Result[String, a]] = 
+        EnvError((e, k) -> 
+            apply1WithHandler(ma, e, a -> k(Ok(a)), msg -> k(Err(msg)))
         )
 
     pub def empty(): EnvError[ka, env, ef, a] = throwError("empty")

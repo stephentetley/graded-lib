@@ -58,6 +58,9 @@ mod Graded {
 
         pub def catchError(ma: StateError[ka, st, ef, a], hdlr: String -> StateError[ka, st, ef1, a] \ ef2): StateError[ka, st, ef and ef1 and ef2, a] = 
             Graded.StateError.catchError(ma, hdlr)
+        
+        pub def reifyError(ma: StateError[ka, st, ef, a]): StateError[ka, st, ef, Result[String, a]] = 
+            Graded.StateError.reifyError(ma)    
     }  
 
 
@@ -148,6 +151,10 @@ mod Graded.StateError {
             apply1WithHandler(unchecked_cast(ma as StateError[ka, st, ef and ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
+    pub def reifyError(ma: StateError[ka, st, ef, a]): StateError[ka, st, ef, Result[String, a]] = 
+        StateError((s, k) -> 
+            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg), s))
+        )
 
     pub def update(f: s -> s \ ef): StateError[ka, s, ef, Unit] = 
         StateError((s, k) -> 

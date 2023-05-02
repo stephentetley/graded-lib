@@ -17,37 +17,40 @@
 /// Catching the Error does not imply that any state is
 /// reset, but it does allow recovery from failure.
 /// 
-/// Error type is fixed to string - this could change if/when Flix gets MPTCs.
+/// Error type is fixed to string - this could change now Flix has associated types.
 ///
 pub class GradedError[m: Bool -> Type -> Type] with GradedMonad[m] {
-    
+
     pub def throwError(e: String): m[ef, a]
 
     pub def mapError(f: String -> String \ ef1, m: m[ef, a]): m[ef and ef1, a]
 
     pub def catchError(m: m[ef, a], hdl: String -> m[ef1, a] \ ef2): m[ef and ef1 and ef2, a]
 
+    pub def reifyError(m: m[ef, a]): m[ef, Result[String, a]]
+
 }
 
 mod GradedError {
 
-    use GradedApplicative.point;
-    
+    use GradedApplicative.point
+    use GradedMonad.{>>=}
+    use GradedError.{throwError, mapError, catchError, reifyError}
 
     pub def swapError[m: Bool -> Type -> Type, ef: Bool, a: Type]
                         (msg: String, ma: m[ef, a]): m[ef, a] with GradedError[m] = 
-        GradedError.mapError(_ -> msg, ma)
+        mapError(_ -> msg, ma)
 
     pub def liftOption[m: Bool -> Type -> Type, ef: Bool, err: Type, a: Type]
                         (e: err, x: Option[a]): m[ef, a] with GradedError[m], ToString[err] = match x { 
         case Some(x1) => point(x1)
-        case None     => GradedError.throwError(ToString.toString(e))
+        case None     => throwError(ToString.toString(e))
     }
 
     pub def liftResult[m: Bool -> Type -> Type, ef: Bool, err: Type, a: Type]
                         (x: Result[err, a]): m[ef, a] with GradedError[m], ToString[err] = match x { 
         case Ok(x1)   => point(x1)
-        case Err(msg) => GradedError.throwError(ToString.toString(msg))
+        case Err(msg) => throwError(ToString.toString(msg))
     }
 
     pub def guard[m: Bool -> Type -> Type, ef: Bool]
@@ -56,6 +59,18 @@ mod GradedError {
         case false => throwError("guard")
     }
 
+
+    // Failure is explicity trapped in `start` - if `start` is successful apply `mnext` to its answer ala `flatMap`.
+    // If `start` fails apply `melse` to the failure value.
+    pub def flatMapOr[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, ef2: Bool, ef3: Bool, a: Type, b: Type]
+                        (start: m[ef, a], 
+                        mnext: a -> m[ef1, b] \ ef2, 
+                        melse: String -> m[ef3, b]): m[ef and ef1 and ef2 and ef3, b] with GradedError[m] =
+        reifyError(start) >>= ans -> match ans {
+            case Ok(a)    => unchecked_cast(mnext(a) as m[ef and ef1 and ef2 and ef3, b])
+            case Err(msg) => unchecked_cast(melse(msg) as m[ef and ef1 and ef2 and ef3, b])
+        }
+            
 
 }
 

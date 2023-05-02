@@ -59,6 +59,9 @@ mod Graded {
 
         pub def catchError(ma: EnvStateError[ka, env, st, ef, a], hdlr: String -> EnvStateError[ka, env, st, ef1, a] \ ef2): EnvStateError[ka, env, st, ef and ef1 and ef2, a] = 
             Graded.EnvStateError.catchError(ma, hdlr)
+        
+        pub def reifyError(ma: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef, Result[String, a]] = 
+            Graded.EnvStateError.reifyError(ma)
     }  
 
 
@@ -150,7 +153,12 @@ mod Graded.EnvStateError {
         EnvStateError((e, s, k) -> 
             apply1WithHandler(unchecked_cast(ma as EnvStateError[ka, env, st, ef and ef1, a]), e, s, k, msg -> checked_ecast(Err(f(msg))))
         )
- 
+   
+    pub def reifyError(ma: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef, Result[String, a]] = 
+        EnvStateError((e, s, k) -> 
+            apply1WithHandler(ma, e, s, a -> k(Ok(a)), msg -> k(Err(msg), s))
+        )
+
 
     pub def update(f: st -> st \ ef): EnvStateError[ka, env, st, ef, Unit] = 
         EnvStateError((_, s, k) -> 

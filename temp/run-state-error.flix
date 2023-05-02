@@ -20,11 +20,11 @@ pub def test02(): Unit \ IO =
     println("test02");
     Graded.StateError.runStateError(action02(), 0) |> println    
 
-pub def action02(): StateError[ka, Int32, Pure, (Int32, Int32)] = 
-    use Graded.StateError.{flatMap, get, put};
-    use GradedApplicative.{point};
-    forM(i <- get();
-        put(i + 10);
-        j <- get())
-    yield ((i, j))
+// pub def action02(): StateError[ka, Int32, Pure, (Int32, Int32)] = 
+//     use Graded.StateError.{flatMap, get, put};
+//     use GradedApplicative.{point};
+//     forM(i <- get();
+//         put(i + 10);
+//         j <- get())
+//     yield ((i, j))
 

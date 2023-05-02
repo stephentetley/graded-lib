@@ -64,6 +64,9 @@ mod Graded {
 
         pub def catchError(ma: CodensityError[ka, ef, a], hdlr: String -> CodensityError[ka, ef1, a] \ ef2): CodensityError[ka, ef and ef1 and ef2, a] = 
             Graded.CodensityError.catchError(ma, hdlr)
+
+        pub def reifyError(ma: CodensityError[ka, ef, a]): CodensityError[ka, ef, Result[String, a]] = 
+            Graded.CodensityError.reifyError(ma)            
     }  
 
 
@@ -143,6 +146,11 @@ mod Graded.CodensityError {
     pub def mapError(f: String -> String \ ef1, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef and ef1, a] = 
         CodensityError(k -> 
             apply1WithHandler(unchecked_cast(ma as CodensityError[ka, ef and ef1, a]), a -> k(a), msg -> checked_ecast(Err(f(msg))))
+        )
+
+    pub def reifyError(ma: CodensityError[ka, ef, a]): CodensityError[ka, ef, Result[String, a]] = 
+        CodensityError(k -> 
+            apply1WithHandler(ma, a -> k(Ok(a)), msg -> k(Err(msg)))
         )
 
     pub def empty(): CodensityError[ka, ef, a] = throwError("empty")

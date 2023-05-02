@@ -67,6 +67,9 @@ mod Graded {
         pub def catchError(ma: Builder[ka, st, ef, a], 
                             hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef and ef1 and ef2, a] = 
             Graded.Builder.catchError(ma, hdlr)
+    
+        pub def reifyError(ma: Builder[ka, st, ef, a]): Builder[ka, st, ef, Result[String, a]] = 
+            Graded.Builder.reifyError(ma)
     }  
 
 
@@ -158,6 +161,11 @@ mod Graded.Builder {
         )
 
     
+    pub def reifyError(ma: Builder[ka, st, ef, a]): Builder[ka, st, ef, Result[String, a]] = 
+        Builder((s, k) -> 
+            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+        )
+
     pub def liftGetter(f: st -> a \ ef): Builder[ka, st, ef, a] = 
         Builder((s, k) ->
             try {

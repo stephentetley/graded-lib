@@ -61,6 +61,9 @@ mod Graded {
         pub def catchError(ma: EnvMutStateError[ka, env, st, ef, a], 
                             hdlr: String -> EnvMutStateError[ka, env, st, ef1, a] \ ef2): EnvMutStateError[ka, env, st, ef and ef1 and ef2, a] = 
             Graded.EnvMutStateError.catchError(ma, hdlr)
+
+        pub def reifyError(ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef, Result[String, a]] = 
+            Graded.EnvMutStateError.reifyError(ma)
     }  
 
 
@@ -148,6 +151,11 @@ mod Graded.EnvMutStateError {
     pub def mapError(f: String -> String \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef and ef1, a] = 
         EnvMutStateError((e, s, k) -> 
             apply1WithHandler(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef and ef1, a]), e, s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+        )
+   
+    pub def reifyError(ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef, Result[String, a]] = 
+        EnvMutStateError((e, s, k) -> 
+            apply1WithHandler(ma, e, s, a -> k(Ok(a)), msg -> k(Err(msg)))
         )
 
     pub def liftGetter(f: env -> st -> a \ ef): EnvMutStateError[ka, env, st, ef, a] = 

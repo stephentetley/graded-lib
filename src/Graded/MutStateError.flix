@@ -66,6 +66,9 @@ mod Graded {
         pub def catchError(ma: MutStateError[ka, st, ef, a], 
                             hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
             Graded.MutStateError.catchError(ma, hdlr)
+
+        pub def reifyError(ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef, Result[String, a]] = 
+            Graded.MutStateError.reifyError(ma)
     }  
 
 
@@ -155,6 +158,12 @@ mod Graded.MutStateError {
                 }
             }
         )
+    
+    pub def reifyError(ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef, Result[String, a]] = 
+        MutStateError((s, k) -> 
+            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+        )
+
 
     /// ideally something like > Err(liftApp(@ \ ef, getMessage, ex)) 
     pub def liftGetter(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
