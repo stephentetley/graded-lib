@@ -192,13 +192,13 @@ mod Graded.EnvError {
             } 
         )
 
-    pub def askEnv(): EnvError[ka, env, ef, env] = 
+    pub def ask(): EnvError[ka, env, ef, env] = 
         EnvError((e, k) -> k(e))
 
-    pub def asksEnv(f: env -> a \ ef): EnvError[ka, env, ef, a] = 
+    pub def asks(f: env -> a \ ef): EnvError[ka, env, ef, a] = 
         EnvError((e, k) -> k(f(e)))
 
-    pub def localEnv(f: env -> env1 \ ef1, ma: EnvError[ka, env1, ef, a]): EnvError[ka, env, ef and ef1, a] = 
+    pub def local(f: env -> env1 \ ef1, ma: EnvError[ka, env1, ef, a]): EnvError[ka, env, ef and ef1, a] = 
         EnvError((e, k) -> 
             apply1(unchecked_cast(ma as EnvError[ka, env1, ef and ef1, a]), f(e), a1 -> 
                 k(a1))
