@@ -25,7 +25,7 @@ mod Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    /// Ideally st would be st: Region -> Type with r: Region but this currently causes 
+    /// Ideally `st` would be st: Region -> Type with r: Region but this currently causes 
     /// a compiler crash (Flix issue #2113)
     ///    
     pub enum Evaluator[ka: Type, st: Type, ef: Bool, a: Type](

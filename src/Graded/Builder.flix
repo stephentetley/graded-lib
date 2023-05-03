@@ -17,12 +17,13 @@
 mod Graded {
 
 
+
     ///
     /// The Builder monad is a restricted MutState-Error monad (no direct `put` and `get`).
     /// 
     /// `ka` is the continuation answer type
     ///
-    /// Ideally st would be st: Region -> Type with r: Region but this ntly causes a compiler
+    /// Ideally `st` would be `st`: Region -> Type with r: Region but this currently causes a compiler
     /// crash (Flix issue #2113)
     ///
     pub enum Builder[ka: Type, st: Type, ef: Bool, a: Type](

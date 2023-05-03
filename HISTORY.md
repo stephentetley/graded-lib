@@ -1,4 +1,4 @@
-### v0.4.0 (pending)
+### v0.4.0
    Addded `reifyError` to `GradedError` class.
 
 ### v0.3.1
