@@ -19,61 +19,61 @@ mod Graded {
 
     ///
     /// Reader-Error like monad where the environment is "read-only mutable state" 
-    /// (i.e mutation is expected before or after the Evaluator has run).
+    /// (i.e mutation is expected but only before or after the Evaluator has run).
     ///
     /// `local` is not supported.
     /// 
     /// `ka` is the continuation answer type
     ///
-    /// Ideally `st` would be st: Region -> Type with r: Region but this currently causes 
+    /// Ideally `vs` would be vs: Region -> Type with r: Region but this currently causes 
     /// a compiler crash (Flix issue #2113)
     ///    
-    pub enum Evaluator[ka: Type, st: Type, ef: Bool, a: Type](
-        st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
+    pub enum Evaluator[ka: Type, vs: Type, ef: Bool, a: Type](
+        vs -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
     )
 
 
-    instance GradedFunctor[Evaluator[ka, st]] { 
-        pub def map(f: a -> b \ ef1, m: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, b] = 
+    instance GradedFunctor[Evaluator[ka, vs]] { 
+        pub def map(f: a -> b \ ef1, m: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1, b] = 
             Graded.Evaluator.map(f, m)
     }
 
-    instance GradedApplicative[Evaluator[ka, st]] { 
-        pub def point(x: a): Evaluator[ka, st, ef, a] = 
+    instance GradedApplicative[Evaluator[ka, vs]] { 
+        pub def point(x: a): Evaluator[ka, vs, ef, a] = 
             Graded.Evaluator.point(x)
 
-        pub def ap(f: Evaluator[ka, st, ef1, a -> b \ ef2], m: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] = 
+        pub def ap(f: Evaluator[ka, vs, ef1, a -> b \ ef2], m: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1 and ef2, b] = 
             Graded.Evaluator.ap(f, m)
     }
 
-    instance GradedMonad[Evaluator[ka, st]] { 
-        pub def flatMap(k: a -> Evaluator[ka, st, ef1, b] \ ef2, m: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] = 
+    instance GradedMonad[Evaluator[ka, vs]] { 
+        pub def flatMap(k: a -> Evaluator[ka, vs, ef1, b] \ ef2, m: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1 and ef2, b] = 
             Graded.Evaluator.flatMap(k, m)
     }
 
-    instance GradedZero[Evaluator[ka, st]] { 
-        pub def empty(): Evaluator[ka, st, ef, a] = 
+    instance GradedZero[Evaluator[ka, vs]] { 
+        pub def empty(): Evaluator[ka, vs, ef, a] = 
             Graded.Evaluator.empty()
     }
 
     // Orelse available for Evaluator because it is expected to only be reading the state
 
-    instance GradedOr[Evaluator[ka, st]] { 
-        pub def orelse(ma: Evaluator[ka, st, ef1, a], mb: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2, a] =
+    instance GradedOr[Evaluator[ka, vs]] { 
+        pub def orelse(ma: Evaluator[ka, vs, ef1, a], mb: Evaluator[ka, vs, ef2, a]): Evaluator[ka, vs, ef1 and ef2, a] =
             Graded.Evaluator.orelse(ma, mb)
     }
     
-    instance GradedError[Evaluator[ka, st]] { 
-        pub def throwError(msg: String): Evaluator[ka, st, ef, a] =
+    instance GradedError[Evaluator[ka, vs]] { 
+        pub def throwError(msg: String): Evaluator[ka, vs, ef, a] =
             Graded.Evaluator.throwError(msg)
 
-        pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
+        pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1, a] = 
             Graded.Evaluator.mapError(f, ma)
 
-        pub def catchError(ma: Evaluator[ka, st, ef, a], hdlr: String -> Evaluator[ka, st, ef1, a] \ ef2): Evaluator[ka, st, ef and ef1 and ef2, a] = 
+        pub def catchError(ma: Evaluator[ka, vs, ef, a], hdlr: String -> Evaluator[ka, vs, ef1, a] \ ef2): Evaluator[ka, vs, ef and ef1 and ef2, a] = 
             Graded.Evaluator.catchError(ma, hdlr)
         
-        pub def reifyError(ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef, Result[String, a]] = 
+        pub def reifyError(ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef, Result[String, a]] = 
             Graded.Evaluator.reifyError(ma)
     }  
 
@@ -89,19 +89,19 @@ mod Graded.Evaluator {
     ///
     /// Helper function for the implementation of `map` and `ap` etc.
     ///
-    def apply1(ma: Evaluator[ka, st, ef, a], 
-                e: st, 
+    def apply1(ma: Evaluator[ka, vs, ef, a], 
+                s: vs, 
                 k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let Evaluator(ma1) = ma;
-        ma1(e, k)
+        ma1(s, k)
 
 
-    def apply1WithHandler(ma: Evaluator[ka, st, ef, a], 
-                            e: st,
+    def apply1WithHandler(ma: Evaluator[ka, vs, ef, a], 
+                            s: vs,
                             k: a -> Result[String, ka] \ ef, 
                             handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
         let Evaluator(ma1) = ma;
-        match ma1(e, k) {
+        match ma1(s, k) {
             case Err(msg) => handleK(msg)
             case Ok(a)    => Ok(a)
         }
@@ -111,77 +111,77 @@ mod Graded.Evaluator {
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
-    pub def runEvaluator(ma: Evaluator[a, st, ef, a], e: st): Result[String, a] \ ef =
+    pub def runEvaluator(ma: Evaluator[a, vs, ef, a], s: vs): Result[String, a] \ ef =
         let Evaluator(f) = ma;
         let cont = a -> checked_ecast(Ok(a));
-        f(e, cont)
+        f(s, cont)
 
 
-    pub def point(x: a): Evaluator[ka, st, ef, a] = 
+    pub def point(x: a): Evaluator[ka, vs, ef, a] = 
         Evaluator((_, k) -> k(x))
 
 
-    pub def map(f: a -> b \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, b] =
-        Evaluator((e, k) ->
-            apply1(unchecked_cast(ma as Evaluator[ka, st, ef and ef1, a]), e, a -> k(f(a)))
+    pub def map(f: a -> b \ ef1, ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1, b] =
+        Evaluator((s, k) ->
+            apply1(unchecked_cast(ma as Evaluator[ka, vs, ef and ef1, a]), s, a -> k(f(a)))
         )
 
-    pub def ap(mf: Evaluator[ka, st, ef1, a -> b \ ef2], 
-                ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] =
-        Evaluator((e, k) ->
-            apply1(unchecked_cast(mf as Evaluator[ka, st, ef and ef1 and ef2, a -> b \ ef2]), e, f ->
-                apply1(unchecked_cast(ma as Evaluator[ka, st, ef and ef1 and ef2, a]), e, a ->
+    pub def ap(mf: Evaluator[ka, vs, ef1, a -> b \ ef2], 
+                ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1 and ef2, b] =
+        Evaluator((s, k) ->
+            apply1(unchecked_cast(mf as Evaluator[ka, vs, ef and ef1 and ef2, a -> b \ ef2]), s, f ->
+                apply1(unchecked_cast(ma as Evaluator[ka, vs, ef and ef1 and ef2, a]), s, a ->
                     k(f(a))))
         )
 
 
-    pub def flatMap(f: a -> Evaluator[ka, st, ef1, b] \ ef2, 
-                    ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1 and ef2, b] =
-        Evaluator((e, k) ->
-            apply1(unchecked_cast(ma as Evaluator[ka, st, ef and ef1 and ef2, a]), e, a ->
-                apply1(unchecked_cast(f(a) as Evaluator[ka, st, ef and ef1 and ef2, b]), e, b ->
+    pub def flatMap(f: a -> Evaluator[ka, vs, ef1, b] \ ef2, 
+                    ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1 and ef2, b] =
+        Evaluator((s, k) ->
+            apply1(unchecked_cast(ma as Evaluator[ka, vs, ef and ef1 and ef2, a]), s, a ->
+                apply1(unchecked_cast(f(a) as Evaluator[ka, vs, ef and ef1 and ef2, b]), s, b ->
                     k(b)))
         )
 
-    pub def throwError(msg: String): Evaluator[ka, st, ef, a] = 
+    pub def throwError(msg: String): Evaluator[ka, vs, ef, a] = 
         Evaluator((_, _) -> checked_ecast(Err(msg)))
 
-    pub def catchError(ma: Evaluator[ka, st, ef, a], 
-                        hdlr: String -> Evaluator[ka, st, ef1, a] \ ef2): Evaluator[ka, st, ef and ef1 and ef2, a] = 
-        Evaluator((e, k) -> 
-            let Evaluator(ma1) = unchecked_cast(ma as Evaluator[ka, st, ef and ef1 and ef2, a]);
-            match ma1(e, k) {
+    pub def catchError(ma: Evaluator[ka, vs, ef, a], 
+                        hdlr: String -> Evaluator[ka, vs, ef1, a] \ ef2): Evaluator[ka, vs, ef and ef1 and ef2, a] = 
+        Evaluator((s, k) -> 
+            let Evaluator(ma1) = unchecked_cast(ma as Evaluator[ka, vs, ef and ef1 and ef2, a]);
+            match ma1(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let Evaluator(hdlr1) = unchecked_cast(hdlr(msg) as Evaluator[ka, st, ef and ef1 and ef2, a]); 
-                    hdlr1(e, k)
+                    let Evaluator(hdlr1) = unchecked_cast(hdlr(msg) as Evaluator[ka, vs, ef and ef1 and ef2, a]); 
+                    hdlr1(s, k)
                 }
             }
         )
 
-    pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef and ef1, a] = 
-        Evaluator((e, k) -> 
-            apply1WithHandler(unchecked_cast(ma as Evaluator[ka, st, ef and ef1, a]), e, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+    pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef and ef1, a] = 
+        Evaluator((s, k) -> 
+            apply1WithHandler(unchecked_cast(ma as Evaluator[ka, vs, ef and ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
-    pub def reifyError(ma: Evaluator[ka, st, ef, a]): Evaluator[ka, st, ef, Result[String, a]] = 
-        Evaluator((e, k) -> 
-            apply1WithHandler(ma, e, a -> k(Ok(a)), msg -> k(Err(msg)))
+    pub def reifyError(ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef, Result[String, a]] = 
+        Evaluator((s, k) -> 
+            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg)))
         )
 
-    pub def empty(): Evaluator[ka, st, ef, a] = throwError("empty")
+    pub def empty(): Evaluator[ka, vs, ef, a] = throwError("empty")
 
-    pub def orelse(ma: Evaluator[ka, st, ef1, a], mb: Evaluator[ka, st, ef2, a]): Evaluator[ka, st, ef1 and ef2, a] =
-        Evaluator((e, k) ->
-            apply1WithHandler(unchecked_cast(ma as Evaluator[ka, st, ef1 and ef2, a]), e, a -> k(a), _ -> 
-                apply1(unchecked_cast(mb as Evaluator[ka, st, ef1 and ef2, a]), e, b -> k(b)))
+    pub def orelse(ma: Evaluator[ka, vs, ef1, a], mb: Evaluator[ka, vs, ef2, a]): Evaluator[ka, vs, ef1 and ef2, a] =
+        Evaluator((s, k) ->
+            apply1WithHandler(unchecked_cast(ma as Evaluator[ka, vs, ef1 and ef2, a]), s, a -> k(a), _ -> 
+                apply1(unchecked_cast(mb as Evaluator[ka, vs, ef1 and ef2, a]), s, b -> k(b)))
         )
 
 
-    pub def liftGetter(f: st -> a \ ef): Evaluator[ka, st, ef, a]= 
-        Evaluator((e, k) ->
+    pub def liftGetter(f: vs -> a \ ef): Evaluator[ka, vs, ef, a]= 
+        Evaluator((s, k) ->
             try {
-                let ans = f(e);
+                let ans = f(s);
                 k(ans)
             } catch {
                 case ex: ##java.lang.Exception => 
@@ -192,22 +192,22 @@ mod Graded.Evaluator {
 
 
     // f should not throw an exception
-    pub def liftGetterResult(f: st -> Result[e, a] \ ef): Evaluator[ka, st, ef, a] with ToString[e] = 
-        Evaluator((e, k) ->
-            match f(e) { 
+    pub def liftGetterResult(f: vs -> Result[s, a] \ ef): Evaluator[ka, vs, ef, a] with ToString[s] = 
+        Evaluator((s, k) ->
+            match f(s) { 
                 case Ok(a)    => k(a)
                 case Err(err) => Err(ToString.toString(err))
             } 
         )
 
 
-    pub def liftAction(f: Unit -> a \ ef): Evaluator[ka, st, ef, a] = 
+    pub def liftAction(f: Unit -> a \ ef): Evaluator[ka, vs, ef, a] = 
         Evaluator((_, k) ->
             let a = f(); 
             k(a)  
         )
 
-    pub def liftActionResult(f: Unit -> Result[e, a] \ ef): Evaluator[ka, st, ef, a] with ToString[e] = 
+    pub def liftActionResult(f: Unit -> Result[s, a] \ ef): Evaluator[ka, vs, ef, a] with ToString[s] = 
         Evaluator((_, k) ->
             match f() {
                 case Ok(a)    => k(a)

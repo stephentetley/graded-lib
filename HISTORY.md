@@ -1,5 +1,10 @@
+### v0.5.0
+   Added EnvEvaluator.
+   Naming changes for Reader operations `askEnv` becomes `ask`, `localEnv` becomes `local` etc.
+   Generalized effect types of `update`, `gets`, etc.
+
 ### v0.4.0
-   Addded `reifyError` to `GradedError` class.
+   Added `reifyError` to `GradedError` class.
 
 ### v0.3.1
    Added EnvStateError.

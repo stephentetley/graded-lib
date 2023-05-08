@@ -160,7 +160,7 @@ mod Graded.EnvStateError {
         )
 
 
-    pub def update(f: st -> st \ ef): EnvStateError[ka, env, st, ef, Unit] = 
+    pub def update(f: st -> st \ ef1): EnvStateError[ka, env, st, ef and ef1, Unit] = 
         EnvStateError((_, s, k) -> 
             k((), f(s))
         )
@@ -177,8 +177,8 @@ mod Graded.EnvStateError {
             k(s, s)
         )
 
-
-    pub def gets(proj: st -> a \ ef): EnvStateError[ka, env, st, ef, a] = 
+    
+    pub def gets(proj: st -> a \ ef1): EnvStateError[ka, env, st, ef and ef1, a] = 
         EnvStateError((_, s, k) -> 
             k(proj(s), s)
         )
@@ -188,7 +188,7 @@ mod Graded.EnvStateError {
             k(e, s)
         )
 
-    pub def asks(proj: env -> a \ ef): EnvStateError[ka, env, st, ef, a] = 
+    pub def asks(proj: env -> a \ ef1): EnvStateError[ka, env, st, ef and ef1, a] = 
         EnvStateError((e, s, k) -> 
             k(proj(e), s)
         )

@@ -156,7 +156,7 @@ mod Graded.StateError {
             apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg), s))
         )
 
-    pub def update(f: s -> s \ ef): StateError[ka, s, ef, Unit] = 
+    pub def update(f: s -> s \ ef1): StateError[ka, s, ef and ef1, Unit] = 
         StateError((s, k) -> 
             k((), f(s))
         )
@@ -173,7 +173,7 @@ mod Graded.StateError {
             k(s, s)
         )
 
-    pub def gets(proj: s -> a \ ef): StateError[ka, s, ef, a] = 
+    pub def gets(proj: s -> a \ ef1): StateError[ka, s, ef and ef1, a] = 
         StateError((s, k) -> 
             k(proj(s), s)
         )

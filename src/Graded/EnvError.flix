@@ -203,7 +203,7 @@ mod Graded.EnvError {
     pub def ask(): EnvError[ka, env, ef, env] = 
         EnvError((e, k) -> k(e))
 
-    pub def asks(f: env -> a \ ef): EnvError[ka, env, ef, a] = 
+    pub def asks(f: env -> a \ ef1): EnvError[ka, env, ef and ef1, a] = 
         EnvError((e, k) -> k(f(e)))
 
     pub def local(f: env -> env1 \ ef1, ma: EnvError[ka, env1, ef, a]): EnvError[ka, env, ef and ef1, a] = 

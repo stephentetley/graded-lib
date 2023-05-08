@@ -145,7 +145,6 @@ mod Graded.MutStateError {
             apply1WithHandler(unchecked_cast(ma as MutStateError[ka, st, ef and ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
-
     pub def catchError(ma: MutStateError[ka, st, ef, a], 
                         hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
         MutStateError((s, k) -> 
