@@ -22,11 +22,11 @@ mod Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    pub enum EnvError[ka: Type, env: Type, ef: Bool, a: Type](
+    pub enum EnvError[ka: Type, env: Type, ef: Eff, a: Type](
         env -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
 
     instance GradedFunctor[EnvError[ka, env]] { 
-        pub def map(f: a -> b \ ef1, m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, b] = 
+        pub def map(f: a -> b \ ef1, m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, b] = 
             Graded.EnvError.map(f, m)
     }
 
@@ -34,12 +34,12 @@ mod Graded {
         pub def point(x: a): EnvError[ka, env, ef, a] = 
             Graded.EnvError.point(x)
 
-        pub def ap(f: EnvError[ka, env, ef1, a -> b \ ef2], m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] = 
+        pub def ap(f: EnvError[ka, env, ef1, a -> b \ ef2], m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1 + ef2, b] = 
             Graded.EnvError.ap(f, m)
     }
 
     instance GradedMonad[EnvError[ka, env]] { 
-        pub def flatMap(k: a -> EnvError[ka, env, ef1, b] \ ef2, m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] = 
+        pub def flatMap(k: a -> EnvError[ka, env, ef1, b] \ ef2, m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1 + ef2, b] = 
             Graded.EnvError.flatMap(k, m)
     }
 
@@ -51,7 +51,7 @@ mod Graded {
     // Orelse available for Evaluator because it is expected to only be reading the state
 
     instance GradedOr[EnvError[ka, env]] { 
-        pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 and ef2, a] =
+        pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 + ef2, a] =
             Graded.EnvError.orelse(ma, mb)
     }
     
@@ -59,10 +59,10 @@ mod Graded {
         pub def throwError(msg: String): EnvError[ka, env, ef, a] =
             Graded.EnvError.throwError(msg)
 
-        pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, a] = 
+        pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, a] = 
             Graded.EnvError.mapError(f, ma)
 
-        pub def catchError(ma: EnvError[ka, env, ef, a], hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef and ef1 and ef2, a] = 
+        pub def catchError(ma: EnvError[ka, env, ef, a], hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef + ef1 + ef2, a] = 
             Graded.EnvError.catchError(ma, hdlr)
 
         pub def reifyError(ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef, Result[String, a]] = 
@@ -110,23 +110,23 @@ mod Graded.EnvError {
     pub def point(x: a): EnvError[ka, env, ef, a] = 
         EnvError((_, k) -> k(x))
 
-    pub def map(f: a -> b \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, b] =
+    pub def map(f: a -> b \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, b] =
         EnvError((e, k) ->
-            apply1(unchecked_cast(ma as EnvError[ka, env, ef and ef1, a]), e, a -> k(f(a)))
+            apply1(unchecked_cast(ma as EnvError[ka, env, ef + ef1, a]), e, a -> k(f(a)))
         )
 
-    pub def ap(mf: EnvError[ka, env, ef1, a -> b \ ef2], ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] =
+    pub def ap(mf: EnvError[ka, env, ef1, a -> b \ ef2], ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1 + ef2, b] =
         EnvError((e, k) ->
-            apply1(unchecked_cast(mf as EnvError[ka, env, ef and ef1 and ef2, a -> b \ ef2]), e, f ->
-                apply1(unchecked_cast(ma as EnvError[ka, env, ef and ef1 and ef2, a]), e, a ->
+            apply1(unchecked_cast(mf as EnvError[ka, env, ef + ef1 + ef2, a -> b \ ef2]), e, f ->
+                apply1(unchecked_cast(ma as EnvError[ka, env, ef + ef1 + ef2, a]), e, a ->
                     k(f(a))))
         )
 
 
-    pub def flatMap(f: a -> EnvError[ka, env, ef1, b] \ ef2, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1 and ef2, b] =
+    pub def flatMap(f: a -> EnvError[ka, env, ef1, b] \ ef2, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1 + ef2, b] =
         EnvError((e, k) ->
-            apply1(unchecked_cast(ma as EnvError[ka, env, ef and ef1 and ef2, a]), e, a ->
-                apply1(unchecked_cast(f(a) as EnvError[ka, env, ef and ef1 and ef2, b]), e, b ->
+            apply1(unchecked_cast(ma as EnvError[ka, env, ef + ef1 + ef2, a]), e, a ->
+                apply1(unchecked_cast(f(a) as EnvError[ka, env, ef + ef1 + ef2, b]), e, b ->
                     k(b)))
         )
 
@@ -134,21 +134,21 @@ mod Graded.EnvError {
         EnvError((_, _) -> checked_ecast(Err(msg)))
 
     pub def catchError(ma: EnvError[ka, env, ef, a], 
-                        hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef and ef1 and ef2, a] = 
+                        hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef + ef1 + ef2, a] = 
         EnvError((e, k) -> 
-            let EnvError(ma1) = unchecked_cast(ma as EnvError[ka, env, ef and ef1 and ef2, a]);
+            let EnvError(ma1) = unchecked_cast(ma as EnvError[ka, env, ef + ef1 + ef2, a]);
             match ma1(e, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let EnvError(hdlr1) = unchecked_cast(hdlr(msg) as EnvError[ka, env, ef and ef1 and ef2, a]); 
+                    let EnvError(hdlr1) = unchecked_cast(hdlr(msg) as EnvError[ka, env, ef + ef1 + ef2, a]); 
                     hdlr1(e, k)
                 }
             }
         )
 
-    pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef and ef1, a] = 
+    pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, a] = 
         EnvError((e, k) -> 
-            apply1WithHandler(unchecked_cast(ma as EnvError[ka, env, ef and ef1, a]), e, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            apply1WithHandler(unchecked_cast(ma as EnvError[ka, env, ef + ef1, a]), e, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
     pub def reifyError(ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef, Result[String, a]] = 
@@ -158,10 +158,10 @@ mod Graded.EnvError {
 
     pub def empty(): EnvError[ka, env, ef, a] = throwError("empty")
 
-    pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 and ef2, a] =
+    pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 + ef2, a] =
         EnvError((e, k) ->
-            apply1WithHandler(unchecked_cast(ma as EnvError[ka, env, ef1 and ef2, a]), e, a -> k(a), _ -> 
-                apply1(unchecked_cast(mb as EnvError[ka, env, ef1 and ef2, a]), e, b -> k(b)))
+            apply1WithHandler(unchecked_cast(ma as EnvError[ka, env, ef1 + ef2, a]), e, a -> k(a), _ -> 
+                apply1(unchecked_cast(mb as EnvError[ka, env, ef1 + ef2, a]), e, b -> k(b)))
         )
 
 
@@ -203,12 +203,12 @@ mod Graded.EnvError {
     pub def ask(): EnvError[ka, env, ef, env] = 
         EnvError((e, k) -> k(e))
 
-    pub def asks(f: env -> a \ ef1): EnvError[ka, env, ef and ef1, a] = 
+    pub def asks(f: env -> a \ ef1): EnvError[ka, env, ef + ef1, a] = 
         EnvError((e, k) -> k(f(e)))
 
-    pub def local(f: env -> env1 \ ef1, ma: EnvError[ka, env1, ef, a]): EnvError[ka, env, ef and ef1, a] = 
+    pub def local(f: env -> env1 \ ef1, ma: EnvError[ka, env1, ef, a]): EnvError[ka, env, ef + ef1, a] = 
         EnvError((e, k) -> 
-            apply1(unchecked_cast(ma as EnvError[ka, env1, ef and ef1, a]), f(e), a1 -> 
+            apply1(unchecked_cast(ma as EnvError[ka, env1, ef + ef1, a]), f(e), a1 -> 
                 k(a1))
         )
 

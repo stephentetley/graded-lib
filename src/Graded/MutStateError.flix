@@ -26,13 +26,13 @@ mod Graded {
     /// Ideally st would be st: Region -> Type with r: Region but this currently causes a compiler
     /// crash (Flix issue #2113)
     /// 
-    pub enum MutStateError[ka: Type, st: Type, ef: Bool, a: Type](
+    pub enum MutStateError[ka: Type, st: Type, ef: Eff, a: Type](
         st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
     )
 
     instance GradedFunctor[MutStateError[ka, st]] { 
         pub def map(f: a -> b \ ef1, 
-                    x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, b] = 
+                    x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1, b] = 
             Graded.MutStateError.map(f, x)
     }
 
@@ -40,13 +40,13 @@ mod Graded {
         pub def point(x: a): MutStateError[ka, st, ef, a] = Graded.MutStateError.point(x)
 
         pub def ap(f: MutStateError[ka, st, ef1, a -> b \ ef2], 
-                    x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] = 
+                    x: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1 + ef2, b] = 
             Graded.MutStateError.ap(f, x)
     }
 
     instance GradedMonad[MutStateError[ka, st]] { 
         pub def flatMap(k: a -> MutStateError[ka, st, ef1, b] \ ef, 
-                        x: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 and ef2 and ef, b] = 
+                        x: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef1 + ef2 + ef, b] = 
             Graded.MutStateError.flatMap(k, x)
     }
 
@@ -60,11 +60,11 @@ mod Graded {
             Graded.MutStateError.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, 
-                        ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a] = 
+                        ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1, a] = 
             Graded.MutStateError.mapError(f, ma)
 
         pub def catchError(ma: MutStateError[ka, st, ef, a], 
-                            hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
+                            hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef + ef1 + ef2, a] = 
             Graded.MutStateError.catchError(ma, hdlr)
 
         pub def reifyError(ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef, Result[String, a]] = 
@@ -113,23 +113,23 @@ mod Graded.MutStateError {
         MutStateError((_, k) -> k(x))
 
 
-    pub def map(f: a -> b \ ef, ma: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef and ef1, b] =
+    pub def map(f: a -> b \ ef, ma: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef + ef1, b] =
         MutStateError((s, k) ->
-            apply1(unchecked_cast(ma as MutStateError[ka, st, ef and ef1, a]), s, a -> {let b = f(a); k(b)})
+            apply1(unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]), s, a -> {let b = f(a); k(b)})
         )
 
-    pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef2], ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1 and ef2, b] =
+    pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef2], ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1 + ef2, b] =
         MutStateError((s, k) ->
-            apply1(unchecked_cast(mf as MutStateError[ka, st, ef and ef1 and ef2, a -> b \ ef2]), s, f1 ->
-                apply1(unchecked_cast(ma as MutStateError[ka, st, ef and ef1 and ef2, a]), s, a1 ->
+            apply1(unchecked_cast(mf as MutStateError[ka, st, ef + ef1 + ef2, a -> b \ ef2]), s, f1 ->
+                apply1(unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]), s, a1 ->
                     k(f1(a1))))
         )
 
 
-    pub def flatMap(f: a -> MutStateError[ka, st, ef1, b] \ ef, ma: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef and ef1 and ef2, b] =
+    pub def flatMap(f: a -> MutStateError[ka, st, ef1, b] \ ef, ma: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef + ef1 + ef2, b] =
         MutStateError((s, k) ->
-            apply1(unchecked_cast(ma as MutStateError[ka, st, ef and ef1 and ef2, a]), s, a ->
-                apply1(unchecked_cast(f(a) as MutStateError[ka, st, ef and ef1 and ef2, b]), s, b ->
+            apply1(unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]), s, a ->
+                apply1(unchecked_cast(f(a) as MutStateError[ka, st, ef + ef1 + ef2, b]), s, b ->
                     k(b)))
         )
 
@@ -140,19 +140,19 @@ mod Graded.MutStateError {
     pub def throwError(msg: String): MutStateError[ka, st, ef, a] = 
         MutStateError((_, _) -> checked_ecast(Err(msg)))
 
-    pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef and ef1, a] = 
+    pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1, a] = 
         MutStateError((s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as MutStateError[ka, st, ef and ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            apply1WithHandler(unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
     pub def catchError(ma: MutStateError[ka, st, ef, a], 
-                        hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef and ef1 and ef2, a] = 
+                        hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef + ef1 + ef2, a] = 
         MutStateError((s, k) -> 
-            let MutStateError(ma1) = unchecked_cast(ma as MutStateError[ka, st, ef and ef1 and ef2, a]);
+            let MutStateError(ma1) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]);
             match ma1(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let MutStateError(hdlr1) = unchecked_cast(hdlr(msg) as MutStateError[ka, st, ef and ef1 and ef2, a]); 
+                    let MutStateError(hdlr1) = unchecked_cast(hdlr(msg) as MutStateError[ka, st, ef + ef1 + ef2, a]); 
                     hdlr1(s, k)
                 }
             }

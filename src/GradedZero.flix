@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-pub class GradedZero[m: Bool -> Type -> Type] {
+pub class GradedZero[m: Eff -> Type -> Type] {
     pub def empty(): m[ef, b]
 }

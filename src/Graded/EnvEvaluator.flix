@@ -28,13 +28,13 @@ mod Graded {
     /// Ideally `vs` would be vs: Region -> Type with r: Region but this currently causes 
     /// a compiler crash (Flix issue #2113)
     ///    
-    pub enum EnvEvaluator[ka: Type, env: Type, vs: Type, ef: Bool, a: Type](
+    pub enum EnvEvaluator[ka: Type, env: Type, vs: Type, ef: Eff, a: Type](
         env -> vs -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
     )
 
 
     instance GradedFunctor[EnvEvaluator[ka, env, vs]] { 
-        pub def map(f: a -> b \ ef1, m: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1, b] = 
+        pub def map(f: a -> b \ ef1, m: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, b] = 
             Graded.EnvEvaluator.map(f, m)
     }
 
@@ -42,12 +42,12 @@ mod Graded {
         pub def point(x: a): EnvEvaluator[ka, env, vs, ef, a] = 
             Graded.EnvEvaluator.point(x)
 
-        pub def ap(f: EnvEvaluator[ka, env, vs, ef1, a -> b \ ef2], m: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1 and ef2, b] = 
+        pub def ap(f: EnvEvaluator[ka, env, vs, ef1, a -> b \ ef2], m: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] = 
             Graded.EnvEvaluator.ap(f, m)
     }
 
     instance GradedMonad[EnvEvaluator[ka, env, vs]] { 
-        pub def flatMap(k: a -> EnvEvaluator[ka, env, vs, ef1, b] \ ef2, m: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1 and ef2, b] = 
+        pub def flatMap(k: a -> EnvEvaluator[ka, env, vs, ef1, b] \ ef2, m: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] = 
             Graded.EnvEvaluator.flatMap(k, m)
     }
 
@@ -59,7 +59,7 @@ mod Graded {
     // Orelse available for EnvEvaluator because it is expected to only be reading the state
 
     instance GradedOr[EnvEvaluator[ka, env, vs]] { 
-        pub def orelse(ma: EnvEvaluator[ka, env, vs, ef1, a], mb: EnvEvaluator[ka, env, vs, ef2, a]): EnvEvaluator[ka, env, vs, ef1 and ef2, a] =
+        pub def orelse(ma: EnvEvaluator[ka, env, vs, ef1, a], mb: EnvEvaluator[ka, env, vs, ef2, a]): EnvEvaluator[ka, env, vs, ef1 + ef2, a] =
             Graded.EnvEvaluator.orelse(ma, mb)
     }
     
@@ -67,10 +67,10 @@ mod Graded {
         pub def throwError(msg: String): EnvEvaluator[ka, env, vs, ef, a] =
             Graded.EnvEvaluator.throwError(msg)
 
-        pub def mapError(f: String -> String \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1, a] = 
+        pub def mapError(f: String -> String \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, a] = 
             Graded.EnvEvaluator.mapError(f, ma)
 
-        pub def catchError(ma: EnvEvaluator[ka, env, vs, ef, a], hdlr: String -> EnvEvaluator[ka, env, vs, ef1, a] \ ef2): EnvEvaluator[ka, env, vs, ef and ef1 and ef2, a] = 
+        pub def catchError(ma: EnvEvaluator[ka, env, vs, ef, a], hdlr: String -> EnvEvaluator[ka, env, vs, ef1, a] \ ef2): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a] = 
             Graded.EnvEvaluator.catchError(ma, hdlr)
         
         pub def reifyError(ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef, Result[String, a]] = 
@@ -123,25 +123,25 @@ mod Graded.EnvEvaluator {
         EnvEvaluator((_, _, k) -> k(x))
 
 
-    pub def map(f: a -> b \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1, b] =
+    pub def map(f: a -> b \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, b] =
         EnvEvaluator((e, s, k) ->
-            apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef and ef1, a]), e, s, a -> k(f(a)))
+            apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]), e, s, a -> k(f(a)))
         )
 
     pub def ap(mf: EnvEvaluator[ka, env, vs, ef1, a -> b \ ef2], 
-                ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1 and ef2, b] =
+                ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] =
         EnvEvaluator((e, s, k) ->
-            apply1(unchecked_cast(mf as EnvEvaluator[ka, env, vs, ef and ef1 and ef2, a -> b \ ef2]), e, s, f ->
-                apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef and ef1 and ef2, a]), e, s, a ->
+            apply1(unchecked_cast(mf as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a -> b \ ef2]), e, s, f ->
+                apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]), e, s, a ->
                     k(f(a))))
         )
 
 
     pub def flatMap(f: a -> EnvEvaluator[ka, env, vs, ef1, b] \ ef2, 
-                    ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1 and ef2, b] =
+                    ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] =
         EnvEvaluator((e, s, k) ->
-            apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef and ef1 and ef2, a]), e, s, a ->
-                apply1(unchecked_cast(f(a) as EnvEvaluator[ka, env, vs, ef and ef1 and ef2, b]), e, s, b ->
+            apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]), e, s, a ->
+                apply1(unchecked_cast(f(a) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b]), e, s, b ->
                     k(b)))
         )
 
@@ -149,21 +149,21 @@ mod Graded.EnvEvaluator {
         EnvEvaluator((_, _, _) -> checked_ecast(Err(msg)))
 
     pub def catchError(ma: EnvEvaluator[ka, env, vs, ef, a], 
-                        hdlr: String -> EnvEvaluator[ka, env, vs, ef1, a] \ ef2): EnvEvaluator[ka, env, vs, ef and ef1 and ef2, a] = 
+                        hdlr: String -> EnvEvaluator[ka, env, vs, ef1, a] \ ef2): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a] = 
         EnvEvaluator((e, s, k) -> 
-            let EnvEvaluator(ma1) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef and ef1 and ef2, a]);
+            let EnvEvaluator(ma1) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
             match ma1(e, s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let EnvEvaluator(hdlr1) = unchecked_cast(hdlr(msg) as EnvEvaluator[ka, env, vs, ef and ef1 and ef2, a]); 
+                    let EnvEvaluator(hdlr1) = unchecked_cast(hdlr(msg) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]); 
                     hdlr1(e, s, k)
                 }
             }
         )
 
-    pub def mapError(f: String -> String \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1, a] = 
+    pub def mapError(f: String -> String \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, a] = 
         EnvEvaluator((e, s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef and ef1, a]), e, s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            apply1WithHandler(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]), e, s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
     pub def reifyError(ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef, Result[String, a]] = 
@@ -173,10 +173,10 @@ mod Graded.EnvEvaluator {
 
     pub def empty(): EnvEvaluator[ka, env, vs, ef, a] = throwError("empty")
 
-    pub def orelse(ma: EnvEvaluator[ka, env, vs, ef1, a], mb: EnvEvaluator[ka, env, vs, ef2, a]): EnvEvaluator[ka, env, vs, ef1 and ef2, a] =
+    pub def orelse(ma: EnvEvaluator[ka, env, vs, ef1, a], mb: EnvEvaluator[ka, env, vs, ef2, a]): EnvEvaluator[ka, env, vs, ef1 + ef2, a] =
         EnvEvaluator((e, s, k) ->
-            apply1WithHandler(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef1 and ef2, a]), e, s, a -> k(a), _ -> 
-                apply1(unchecked_cast(mb as EnvEvaluator[ka, env, vs, ef1 and ef2, a]), e, s, b -> k(b)))
+            apply1WithHandler(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef1 + ef2, a]), e, s, a -> k(a), _ -> 
+                apply1(unchecked_cast(mb as EnvEvaluator[ka, env, vs, ef1 + ef2, a]), e, s, b -> k(b)))
         )
 
 
@@ -240,12 +240,12 @@ mod Graded.EnvEvaluator {
     pub def ask(): EnvEvaluator[ka, env, vs, ef, env]  = 
         EnvEvaluator((e, _, k) -> checked_ecast(k(e)))
 
-    pub def asks(f: env -> a \ ef1): EnvEvaluator[ka, env, vs, ef and ef1, a]  = 
+    pub def asks(f: env -> a \ ef1): EnvEvaluator[ka, env, vs, ef + ef1, a]  = 
         EnvEvaluator((e, _, k) -> k(f(e)))
 
-    pub def local(f: env -> env1 \ ef1, ma: EnvEvaluator[ka, env1, vs, ef, a]): EnvEvaluator[ka, env, vs, ef and ef1, a] = 
+    pub def local(f: env -> env1 \ ef1, ma: EnvEvaluator[ka, env1, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, a] = 
         EnvEvaluator((e, s, k) -> 
-            apply1(unchecked_cast(ma as EnvEvaluator[ka, env1, vs, ef and ef1, a]), f(e), s, a1 -> 
+            apply1(unchecked_cast(ma as EnvEvaluator[ka, env1, vs, ef + ef1, a]), f(e), s, a1 -> 
                 k(a1))
         )
 

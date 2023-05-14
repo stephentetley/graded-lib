@@ -15,12 +15,12 @@
  */
 
 
-pub class GradedOr[m: Bool -> Type -> Type] with GradedMonad[m] {
+pub class GradedOr[m: Eff -> Type -> Type] with GradedMonad[m] {
 
     ///
     /// "Left catch" / left biased choice
     ///
-    pub def orelse(a: m[ef1, a], b: m[ef2, a]): m[ef1 and ef2, a]
+    pub def orelse(a: m[ef1, a], b: m[ef2, a]): m[ef1 + ef2, a]
 
 }
 
@@ -28,14 +28,14 @@ mod GradedOr {
 
     use GradedFunctor.{<$>}
 
-    pub def <|>[a: Type, ef1: Bool, ef2: Bool, m: Bool -> Type -> Type]
-                (a: m[ef1, a], b: m[ef2, a]): m[ef1 and ef2, a] with GradedOr[m] = orelse(a, b)
+    pub def <|>[a: Type, ef1: Eff, ef2: Eff, m: Eff -> Type -> Type]
+                (a: m[ef1, a], b: m[ef2, a]): m[ef1 + ef2, a] with GradedOr[m] = orelse(a, b)
 
-    pub def optional[a: Type, ef: Bool, m: Bool -> Type -> Type]
+    pub def optional[a: Type, ef: Eff, m: Eff -> Type -> Type]
                     (ma: m[ef, a]): m[ef, Option[a]] with GradedOr[m] = 
         orelse(Some <$> ma, GradedApplicative.point(None))
 
-    pub def withDefault[a: Type, ef: Bool, m: Bool -> Type -> Type]
+    pub def withDefault[a: Type, ef: Eff, m: Eff -> Type -> Type]
                        (d: a, x: m[ef, a]): m[ef, a] with GradedOr[m] =
         orelse(x, GradedApplicative.point(d))
 

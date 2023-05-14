@@ -19,23 +19,23 @@ mod Graded {
     ///
     /// Just a Codensity monad graded with an effect
     ///
-    pub enum Codensity[ka: Type, ef: Bool, a: Type](
+    pub enum Codensity[ka: Type, ef: Eff, a: Type](
         (a -> ka \ ef) -> ka \ ef)
 
     instance GradedFunctor[Codensity[ka]] { 
-        pub def map(f: a -> b \ ef1, m: Codensity[ka, ef, a]): Codensity[ka, ef and ef1, b] = 
+        pub def map(f: a -> b \ ef1, m: Codensity[ka, ef, a]): Codensity[ka, ef + ef1, b] = 
             Graded.Codensity.map(f, m)
     }
 
     instance GradedApplicative[Codensity[ka]] { 
         pub def point(x: a): Codensity[ka, ef, a] = Graded.Codensity.point(x)
 
-        pub def ap(f: Codensity[ka, ef1, a -> b \ ef2], m: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] = 
+        pub def ap(f: Codensity[ka, ef1, a -> b \ ef2], m: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] = 
             Graded.Codensity.ap(f, m)
     }
 
     instance GradedMonad[Codensity[ka]] { 
-        pub def flatMap(k: a -> Codensity[ka, ef1, b] \ ef2, m: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] = 
+        pub def flatMap(k: a -> Codensity[ka, ef1, b] \ ef2, m: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] = 
             Graded.Codensity.flatMap(k, m)
     }
 
@@ -68,22 +68,22 @@ mod Graded.Codensity {
     pub def point(x: a): Codensity[ka, ef, a] = 
         Codensity(k -> k(x))
 
-    pub def map(f: a -> b \ ef, ma: Codensity[ka, ef1, a]): Codensity[ka, ef1 and ef, b] =
+    pub def map(f: a -> b \ ef, ma: Codensity[ka, ef1, a]): Codensity[ka, ef1 + ef, b] =
         Codensity(k ->
-            apply1(unchecked_cast(ma as Codensity[ka, ef1 and ef, a]), a -> {let b = f(a); k(b)})
+            apply1(unchecked_cast(ma as Codensity[ka, ef1 + ef, a]), a -> {let b = f(a); k(b)})
         )
 
-    pub def ap(mf: Codensity[ka, ef1, a -> b \ ef2], ma: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] =
+    pub def ap(mf: Codensity[ka, ef1, a -> b \ ef2], ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
         Codensity(k ->
-            apply1(unchecked_cast(mf as Codensity[ka, ef and ef1 and ef2, a -> b \ ef2]), f ->
-                apply1(unchecked_cast(ma as Codensity[ka, ef and ef1 and ef2, a]), a ->
+            apply1(unchecked_cast(mf as Codensity[ka, ef + ef1 + ef2, a -> b \ ef2]), f ->
+                apply1(unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]), a ->
                     k(f(a))))
         )
 
-    pub def flatMap(f: a -> Codensity[ka, ef1, b] \ ef2, ma: Codensity[ka, ef, a]): Codensity[ka, ef and ef1 and ef2, b] =
+    pub def flatMap(f: a -> Codensity[ka, ef1, b] \ ef2, ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
         Codensity(k ->
-            apply1(unchecked_cast(ma as Codensity[ka, ef and ef1 and ef2, a]), a ->
-                apply1(unchecked_cast(f(a) as Codensity[ka, ef and ef1 and ef2, b]), b ->
+            apply1(unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]), a ->
+                apply1(unchecked_cast(f(a) as Codensity[ka, ef + ef1 + ef2, b]), b ->
                     k(b)))
         )
 

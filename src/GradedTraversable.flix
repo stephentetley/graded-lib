@@ -23,13 +23,13 @@ pub class GradedTraversable[t : Type -> Type] with Traversable[t]{
     /// Returns the result of applying the graded applicative mapping function `f` to 
     /// all the elements of the data structure `t`.
     ///
-    pub def traverse[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                    (f: a -> m[ef, b] \ ef1, t: t[a]): m[ef and ef1, t[b]] with GradedApplicative[m]
+    pub def traverse[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type, b: Type]
+                    (f: a -> m[ef, b] \ ef1, t: t[a]): m[ef + ef1, t[b]] with GradedApplicative[m]
 
     ///
     /// Returns the result of running all the actions in the data structure `t`.
     ///
-    pub def sequence[m: Bool -> Type -> Type, ef: Bool, a: Type]
+    pub def sequence[m: Eff -> Type -> Type, ef: Eff, a: Type]
                     (t: t[m[ef, a]]): m[ef, t[a]] with GradedApplicative[m] =
         GradedTraversable.traverse(identity, t)
 
@@ -39,11 +39,11 @@ pub class GradedTraversable[t : Type -> Type] with Traversable[t]{
 instance GradedTraversable[List] {
     
 
-    pub def traverse[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                    (f: a -> m[ef, b] \ ef1, l: List[a]): m[ef and ef1, List[b]] with GradedApplicative[m] =
+    pub def traverse[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type, b: Type]
+                    (f: a -> m[ef, b] \ ef1, l: List[a]): m[ef + ef1, List[b]] with GradedApplicative[m] =
         def loop(ll, k) = match ll {
             case Nil     => k(GradedApplicative.point(Nil))
-            case x :: xs => loop(xs, ks -> k({let x1 = unchecked_cast(f(x) as m[ef and ef1, b] \ {}); ListHelper.consA(x1, ks)}))
+            case x :: xs => loop(xs, ks -> k({let x1 = unchecked_cast(f(x) as m[ef + ef1, b] \ {}); ListHelper.consA(x1, ks)}))
         };       
         loop(l, identity)
 
@@ -51,8 +51,8 @@ instance GradedTraversable[List] {
 
 mod ListHelper {
 
-    pub def consA[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type]
-                (mx: m[ef1, a], ml: m[ef, List[a]]): m[ef and ef1, List[a]] with GradedApplicative[m] =
+    pub def consA[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type]
+                (mx: m[ef1, a], ml: m[ef, List[a]]): m[ef + ef1, List[a]] with GradedApplicative[m] =
         use GradedFunctor.{<$>};
         use GradedApplicative.{<*>};
         (((x, xs) -> x :: xs) <$> mx) <*> ml

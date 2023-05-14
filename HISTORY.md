@@ -1,3 +1,6 @@
+### v0.6.0
+   Updated to use new effect syntax naming (`+` rather than `and`, `Eff` rather than `Bool`).
+
 ### v0.5.0
    Added EnvEvaluator.
    Naming changes for Reader operations `askEnv` becomes `ask`, `localEnv` becomes `local` etc.

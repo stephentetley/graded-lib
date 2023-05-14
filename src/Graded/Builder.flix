@@ -26,12 +26,12 @@ mod Graded {
     /// Ideally `st` would be `st`: Region -> Type with r: Region but this currently causes a compiler
     /// crash (Flix issue #2113)
     ///
-    pub enum Builder[ka: Type, st: Type, ef: Bool, a: Type](
+    pub enum Builder[ka: Type, st: Type, ef: Eff, a: Type](
         st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
     )
 
     instance GradedFunctor[Builder[ka, st]] { 
-        pub def map(f: a -> b \ ef1, x: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, b] = 
+        pub def map(f: a -> b \ ef1, x: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1, b] = 
             Graded.Builder.map(f, x)
     }
 
@@ -40,13 +40,13 @@ mod Graded {
             Graded.Builder.point(x)
 
         pub def ap(f: Builder[ka, st, ef1, a -> b \ ef2], 
-                    x: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] = 
+                    x: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1 + ef2, b] = 
             Graded.Builder.ap(f, x)
     }
 
     instance GradedMonad[Builder[ka, st]] { 
         pub def flatMap(k: a -> Builder[ka, st, ef1, b] \ ef, 
-                        x: Builder[ka, st, ef2, a]): Builder[ka, st, ef1 and ef2 and ef, b] = 
+                        x: Builder[ka, st, ef2, a]): Builder[ka, st, ef1 + ef2 + ef, b] = 
             Graded.Builder.flatMap(k, x)
     }
 
@@ -62,11 +62,11 @@ mod Graded {
             Graded.Builder.throwError(msg)
 
         pub def mapError(f: String -> String \ ef1, 
-                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, a] = 
+                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1, a] = 
             Graded.Builder.mapError(f, ma)
 
         pub def catchError(ma: Builder[ka, st, ef, a], 
-                            hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef and ef1 and ef2, a] = 
+                            hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef + ef1 + ef2, a] = 
             Graded.Builder.catchError(ma, hdlr)
     
         pub def reifyError(ma: Builder[ka, st, ef, a]): Builder[ka, st, ef, Result[String, a]] = 
@@ -114,23 +114,23 @@ mod Graded.Builder {
         Builder((_, k) -> k(x))
 
 
-    pub def map(f: a -> b \ ef, ma: Builder[ka, st, ef1, a]): Builder[ka, st, ef and ef1, b] =
+    pub def map(f: a -> b \ ef, ma: Builder[ka, st, ef1, a]): Builder[ka, st, ef + ef1, b] =
         Builder((s, k) ->
-            apply1(unchecked_cast(ma as Builder[ka, st, ef and ef1, a]), s, a -> {let b = f(a); k(b)})
+            apply1(unchecked_cast(ma as Builder[ka, st, ef + ef1, a]), s, a -> {let b = f(a); k(b)})
         )
 
-    pub def ap(mf: Builder[ka, st, ef1, a -> b \ ef2], ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] =
+    pub def ap(mf: Builder[ka, st, ef1, a -> b \ ef2], ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1 + ef2, b] =
         Builder((s, k) ->
-            apply1(unchecked_cast(mf as Builder[ka, st, ef and ef1 and ef2, a -> b \ ef2]), s, f1 ->
-                apply1(unchecked_cast(ma as Builder[ka, st, ef and ef1 and ef2, a]), s, a1 ->
+            apply1(unchecked_cast(mf as Builder[ka, st, ef + ef1 + ef2, a -> b \ ef2]), s, f1 ->
+                apply1(unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]), s, a1 ->
                     k(f1(a1))))
         )
 
 
-    pub def flatMap(f: a -> Builder[ka, st, ef1, b] \ ef2, ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1 and ef2, b] =
+    pub def flatMap(f: a -> Builder[ka, st, ef1, b] \ ef2, ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1 + ef2, b] =
         Builder((s, k) ->
-            apply1(unchecked_cast(ma as Builder[ka, st, ef and ef1 and ef2, a]), s, a ->
-                apply1(unchecked_cast(f(a) as Builder[ka, st, ef and ef1 and ef2, b]), s, b ->
+            apply1(unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]), s, a ->
+                apply1(unchecked_cast(f(a) as Builder[ka, st, ef + ef1 + ef2, b]), s, b ->
                     k(b)))
         )
 
@@ -142,20 +142,20 @@ mod Graded.Builder {
         Builder((_, _) -> checked_ecast(Err(msg)))
 
     pub def mapError(f: String -> String \ ef1, 
-                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef and ef1, a]= 
+                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1, a]= 
         Builder((s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as Builder[ka, st, ef and ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            apply1WithHandler(unchecked_cast(ma as Builder[ka, st, ef + ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
 
     pub def catchError(ma: Builder[ka, st, ef, a], 
-                        hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef and ef1 and ef2, a] = 
+                        hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef + ef1 + ef2, a] = 
         Builder((s, k) -> 
-            let Builder(ma1) = unchecked_cast(ma as Builder[ka, st, ef and ef1 and ef2, a]);
+            let Builder(ma1) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
             match ma1(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let Builder(hdlr1) = unchecked_cast(hdlr(msg) as Builder[ka, st, ef and ef1 and ef2, a]); 
+                    let Builder(hdlr1) = unchecked_cast(hdlr(msg) as Builder[ka, st, ef + ef1 + ef2, a]); 
                     hdlr1(s, k)
                 }
             }

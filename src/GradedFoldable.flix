@@ -25,8 +25,8 @@ pub class GradedFoldable[t : Type -> Type] with Foldable[t]{
     /// Applies the graded monadic `f` to a start value `s` and all elements in `t` going
     /// from left to right.
     ///
-    pub def foldLeftM[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                        (f: (b, a) -> m[ef, b] \ ef1, s: b, t: t[a]): m[ef and ef1, b] with GradedMonad[m]
+    pub def foldLeftM[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type, b: Type]
+                        (f: (b, a) -> m[ef, b] \ ef1, s: b, t: t[a]): m[ef + ef1, b] with GradedMonad[m]
 
     ///
     ///
@@ -35,8 +35,8 @@ pub class GradedFoldable[t : Type -> Type] with Foldable[t]{
     /// Applies the graded monadic `f` to a start value `s` and all elements in `t` going
     /// from right to left.
     ///
-    pub def foldRightM[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                        (f: (a, b) -> m[ef, b] \ ef1, s: b, t: t[a]): m[ef and ef1, b] with GradedMonad[m]
+    pub def foldRightM[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type, b: Type]
+                        (f: (a, b) -> m[ef, b] \ ef1, s: b, t: t[a]): m[ef + ef1, b] with GradedMonad[m]
 
     ///
     /// A graded monadic version of `forEach`.
@@ -44,8 +44,8 @@ pub class GradedFoldable[t : Type -> Type] with Foldable[t]{
     /// Apply `f` to every value in `t`. `f` is applied for its monadic effect,
     /// the answer it produces is discarded.
     ///
-    pub def forEachM[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                    (f: a -> m[ef, b] \ ef1, t: t[a]): m[ef and ef1, Unit] with GradedMonad[m] =
+    pub def forEachM[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type, b: Type]
+                    (f: a -> m[ef, b] \ ef1, t: t[a]): m[ef + ef1, Unit] with GradedMonad[m] =
         use GradedApplicative.{point, *>};
         GradedFoldable.foldLeftM((acc, a) -> f(a) *> point(acc), (), t)
 
@@ -54,16 +54,16 @@ pub class GradedFoldable[t : Type -> Type] with Foldable[t]{
 
 instance GradedFoldable[List] {
     
-    pub def foldLeftM[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                    (f: (b, a) -> m[ef, b] \ ef1, s: b, l: List[a]): m[ef and ef1, b] with GradedMonad[m] = 
+    pub def foldLeftM[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type, b: Type]
+                    (f: (b, a) -> m[ef, b] \ ef1, s: b, l: List[a]): m[ef + ef1, b] with GradedMonad[m] = 
         def loop(ll, acc) = match ll {
             case Nil     => acc
             case x :: rs => {let ms1 = GradedMonad.flatMap(y -> f(y, x), acc); loop(rs, ms1)}
         };
         loop(l, GradedApplicative.point(s))
 
-    pub def foldRightM[m: Bool -> Type -> Type, ef: Bool, ef1: Bool, a: Type, b: Type]
-                        (f: (a, b) -> m[ef, b] \ ef1, s: b, l: List[a]): m[ef and ef1, b] with GradedMonad[m] =
+    pub def foldRightM[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, a: Type, b: Type]
+                        (f: (a, b) -> m[ef, b] \ ef1, s: b, l: List[a]): m[ef + ef1, b] with GradedMonad[m] =
         def loop(ll, k) = match ll {
             case Nil     => k(GradedApplicative.point(s))
             case x :: rs => loop(rs, s1 -> k(GradedMonad.flatMap(y -> f(x, y), s1)))
