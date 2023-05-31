@@ -86,20 +86,6 @@ mod Graded.Evaluator {
     use Graded.Evaluator.{Evaluator}
 
 
-    ///
-    /// Helper function for handling errors.
-    ///
-    def apply1WithHandler(ma: Evaluator[ka, vs, ef, a], 
-                            s: vs,
-                            k: a -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let Evaluator(ma1) = ma;
-        match ma1(s, k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
-
-
 
     ///
     /// Returns the result of applying `ma` to the state `s`.
@@ -159,12 +145,17 @@ mod Graded.Evaluator {
 
     pub def mapError(f: String -> String \ ef1, ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef + ef1, a] = 
         Evaluator((s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as Evaluator[ka, vs, ef + ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            let Evaluator(maf) = unchecked_cast(ma as Evaluator[ka, vs, ef + ef1, a]);
+            match maf(s, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => checked_ecast(Err(f(msg)))
+            }
         )
 
     pub def reifyError(ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef, Result[String, a]] = 
         Evaluator((s, k) -> 
-            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+            let Evaluator(maf) = ma;
+            maf(s, a -> k(Ok(a)))
         )
 
     pub def empty(): Evaluator[ka, vs, ef, a] = throwError("empty")
@@ -172,7 +163,7 @@ mod Graded.Evaluator {
     pub def orelse(ma: Evaluator[ka, vs, ef1, a], mb: Evaluator[ka, vs, ef2, a]): Evaluator[ka, vs, ef1 + ef2, a] =
         Evaluator((s, k) ->
             let Evaluator(maf) = unchecked_cast(ma as Evaluator[ka, vs, ef1 + ef2, a]);
-            match maf(s, k){
+            match maf(s, k) {
                 case Ok(a)  => Ok(a)
                 case Err(_) =>  {
                     let Evaluator(mbf) = unchecked_cast(mb as Evaluator[ka, vs, ef1 + ef2, a]);
