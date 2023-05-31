@@ -87,15 +87,8 @@ mod Graded.Evaluator {
 
 
     ///
-    /// Helper function for the implementation of `map` and `ap` etc.
+    /// Helper function for handling errors.
     ///
-    def apply1(ma: Evaluator[ka, vs, ef, a], 
-                s: vs, 
-                k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let Evaluator(ma1) = ma;
-        ma1(s, k)
-
-
     def apply1WithHandler(ma: Evaluator[ka, vs, ef, a], 
                             s: vs,
                             k: a -> Result[String, ka] \ ef, 
@@ -123,14 +116,17 @@ mod Graded.Evaluator {
 
     pub def map(f: a -> b \ ef1, ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef + ef1, b] =
         Evaluator((s, k) ->
-            apply1(unchecked_cast(ma as Evaluator[ka, vs, ef + ef1, a]), s, a -> k(f(a)))
+            let Evaluator(maf) = unchecked_cast(ma as Evaluator[ka, vs, ef + ef1, a]);
+            maf(s, a -> k(f(a)))
         )
 
     pub def ap(mf: Evaluator[ka, vs, ef1, a -> b \ ef2], 
                 ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef + ef1 + ef2, b] =
         Evaluator((s, k) ->
-            apply1(unchecked_cast(mf as Evaluator[ka, vs, ef + ef1 + ef2, a -> b \ ef2]), s, f ->
-                apply1(unchecked_cast(ma as Evaluator[ka, vs, ef + ef1 + ef2, a]), s, a ->
+            let Evaluator(mff) = unchecked_cast(mf as Evaluator[ka, vs, ef + ef1 + ef2, a -> b \ ef2]);
+            let Evaluator(maf) = unchecked_cast(ma as Evaluator[ka, vs, ef + ef1 + ef2, a]);
+            mff(s, f ->
+                maf(s, a ->
                     k(f(a))))
         )
 
@@ -138,8 +134,10 @@ mod Graded.Evaluator {
     pub def flatMap(f: a -> Evaluator[ka, vs, ef1, b] \ ef2, 
                     ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef + ef1 + ef2, b] =
         Evaluator((s, k) ->
-            apply1(unchecked_cast(ma as Evaluator[ka, vs, ef + ef1 + ef2, a]), s, a ->
-                apply1(unchecked_cast(f(a) as Evaluator[ka, vs, ef + ef1 + ef2, b]), s, b ->
+            let Evaluator(maf) = unchecked_cast(ma as Evaluator[ka, vs, ef + ef1 + ef2, a]);
+            maf(s, a ->
+                let Evaluator(faf) = unchecked_cast(f(a) as Evaluator[ka, vs, ef + ef1 + ef2, b]);
+                faf(s, b ->
                     k(b)))
         )
 
@@ -149,12 +147,12 @@ mod Graded.Evaluator {
     pub def catchError(ma: Evaluator[ka, vs, ef, a], 
                         hdlr: String -> Evaluator[ka, vs, ef1, a] \ ef2): Evaluator[ka, vs, ef + ef1 + ef2, a] = 
         Evaluator((s, k) -> 
-            let Evaluator(ma1) = unchecked_cast(ma as Evaluator[ka, vs, ef + ef1 + ef2, a]);
-            match ma1(s, k) {
+            let Evaluator(maf) = unchecked_cast(ma as Evaluator[ka, vs, ef + ef1 + ef2, a]);
+            match maf(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let Evaluator(hdlr1) = unchecked_cast(hdlr(msg) as Evaluator[ka, vs, ef + ef1 + ef2, a]); 
-                    hdlr1(s, k)
+                    let Evaluator(hdlrf) = unchecked_cast(hdlr(msg) as Evaluator[ka, vs, ef + ef1 + ef2, a]); 
+                    hdlrf(s, k)
                 }
             }
         )
@@ -173,8 +171,14 @@ mod Graded.Evaluator {
 
     pub def orelse(ma: Evaluator[ka, vs, ef1, a], mb: Evaluator[ka, vs, ef2, a]): Evaluator[ka, vs, ef1 + ef2, a] =
         Evaluator((s, k) ->
-            apply1WithHandler(unchecked_cast(ma as Evaluator[ka, vs, ef1 + ef2, a]), s, a -> k(a), _ -> 
-                apply1(unchecked_cast(mb as Evaluator[ka, vs, ef1 + ef2, a]), s, b -> k(b)))
+            let Evaluator(maf) = unchecked_cast(ma as Evaluator[ka, vs, ef1 + ef2, a]);
+            match maf(s, k){
+                case Ok(a)  => Ok(a)
+                case Err(_) =>  {
+                    let Evaluator(mbf) = unchecked_cast(mb as Evaluator[ka, vs, ef1 + ef2, a]);
+                    mbf(s, b -> k(b))
+                }
+            }
         )
 
 

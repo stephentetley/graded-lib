@@ -62,7 +62,7 @@ mod GradedError {
 
     // Failure is explicity trapped in `start` - if `start` is successful apply `mnext` to its answer ala `flatMap`.
     // If `start` fails apply `melse` to the failure value.
-    pub def flatMapOr[m: Eff -> Type -> Type, ef: Eff, ef1: Eff, ef2: Eff, ef3: Eff, a: Type, b: Type]
+    pub def flatMapOr[a: Type, b: Type, ef: Eff, ef1: Eff, ef2: Eff, ef3: Eff, m: Eff -> Type -> Type]
                         (start: m[ef, a], 
                         mnext: a -> m[ef1, b] \ ef2, 
                         melse: String -> m[ef3, b]): m[ef + ef1 + ef2 + ef3, b] with GradedError[m] =
