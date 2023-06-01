@@ -85,7 +85,8 @@ mod Graded.CodensityError {
         let CodensityError(ma1) = ma;
         ma1(k)
 
-
+    ///
+    /// 
     def apply1WithHandler(ma: CodensityError[ka, ef, a], 
                             k: a -> Result[String, ka] \ ef, 
                             handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
@@ -148,10 +149,16 @@ mod Graded.CodensityError {
             apply1WithHandler(unchecked_cast(ma as CodensityError[ka, ef + ef1, a]), a -> k(a), msg -> checked_ecast(Err(f(msg))))
         )
 
+
     pub def reifyError(ma: CodensityError[ka, ef, a]): CodensityError[ka, ef, Result[String, a]] = 
         CodensityError(k -> 
-            apply1WithHandler(ma, a -> k(Ok(a)), msg -> k(Err(msg)))
+            let CodensityError(maf) = ma;
+            match maf(a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
+
 
     pub def empty(): CodensityError[ka, ef, a] = throwError("empty")
 

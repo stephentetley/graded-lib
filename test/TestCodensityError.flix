@@ -44,4 +44,12 @@ mod TestCodensityError {
         use GradedApplicative.{*>};
         runIOError(output("No crash") *> point(5)) == Ok(5)
 
+    @test
+    def test06(): Bool \ IO = 
+        use GradedApplicative.{*>};
+        let ans: Result[String, Result[String, Int32]] = Ok(Err("Crash"));
+        let ans1: Result[String, Result[String, Int32]] = runCodensityError(CodensityError.reifyError(CodensityError.throwError("Crash")));
+        println(ans1);
+        runCodensityError(CodensityError.reifyError(CodensityError.throwError("Crash"))) == ans
+
 }

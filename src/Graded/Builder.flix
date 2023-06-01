@@ -164,7 +164,11 @@ mod Graded.Builder {
     
     pub def reifyError(ma: Builder[ka, st, ef, a]): Builder[ka, st, ef, Result[String, a]] = 
         Builder((s, k) -> 
-            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+            let Builder(maf) = ma;
+            match maf(s, a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
 
     pub def liftGetter(f: st -> a \ ef): Builder[ka, st, ef, a] = 

@@ -155,7 +155,10 @@ mod Graded.Evaluator {
     pub def reifyError(ma: Evaluator[ka, vs, ef, a]): Evaluator[ka, vs, ef, Result[String, a]] = 
         Evaluator((s, k) -> 
             let Evaluator(maf) = ma;
-            maf(s, a -> k(Ok(a)))
+            match maf(s, a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
 
     pub def empty(): Evaluator[ka, vs, ef, a] = throwError("empty")
@@ -209,5 +212,6 @@ mod Graded.Evaluator {
                 case Err(err) => Err(ToString.toString(err))
             } 
         )
+
 
 }
