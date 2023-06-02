@@ -50,14 +50,6 @@ mod Graded.Codensity {
 
 
     ///
-    /// Helper function for the implementation of `map` and `ap` etc.
-    ///
-    def apply1(ma: Codensity[ka, ef, a], k: a -> ka \ ef): ka \ ef =
-        let Codensity(ma1) = ma;
-        ma1(k)
-
-
-    ///
     /// Run Codensity
     ///
     pub def runCodensity(ma: Codensity[a, ef, a]): a \ ef =
@@ -70,21 +62,24 @@ mod Graded.Codensity {
 
     pub def map(f: a -> b \ ef, ma: Codensity[ka, ef1, a]): Codensity[ka, ef1 + ef, b] =
         Codensity(k ->
-            apply1(unchecked_cast(ma as Codensity[ka, ef1 + ef, a]), a -> {let b = f(a); k(b)})
+            let Codensity(maf) = unchecked_cast(ma as Codensity[ka, ef1 + ef, a]);
+            maf(a -> {let b = f(a); k(b)})
         )
 
     pub def ap(mf: Codensity[ka, ef1, a -> b \ ef2], ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
         Codensity(k ->
-            apply1(unchecked_cast(mf as Codensity[ka, ef + ef1 + ef2, a -> b \ ef2]), f ->
-                apply1(unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]), a ->
-                    k(f(a))))
+            let Codensity(mff) = unchecked_cast(mf as Codensity[ka, ef + ef1 + ef2, a -> b \ ef2]);
+            mff(f ->
+                let Codensity(maf) = unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]);
+                maf(a -> k(f(a))))
         )
 
     pub def flatMap(f: a -> Codensity[ka, ef1, b] \ ef2, ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
         Codensity(k ->
-            apply1(unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]), a ->
-                apply1(unchecked_cast(f(a) as Codensity[ka, ef + ef1 + ef2, b]), b ->
-                    k(b)))
+            let Codensity(maf) = unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]);
+            maf(a ->
+                let Codensity(faf) = unchecked_cast(f(a) as Codensity[ka, ef + ef1 + ef2, b]);
+                faf(b -> k(b)))
         )
 
 
