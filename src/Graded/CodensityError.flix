@@ -79,24 +79,6 @@ mod Graded.CodensityError {
 
 
     ///
-    /// Helper function for the implementation of `map` and `ap` etc.
-    ///
-    def apply1(ma: CodensityError[ka, ef, a], k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let CodensityError(ma1) = ma;
-        ma1(k)
-
-    ///
-    /// 
-    def apply1WithHandler(ma: CodensityError[ka, ef, a], 
-                            k: a -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let CodensityError(ma1) = ma;
-        match ma1(k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
-
-    ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runCodensityError(ma: CodensityError[a, ef, a]): Result[String, a] \ ef =
@@ -110,22 +92,27 @@ mod Graded.CodensityError {
 
     pub def map(f: a -> b \ ef1, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1, b] =
         CodensityError(k ->
-            apply1(unchecked_cast(ma as CodensityError[ka, ef + ef1, a]), a -> k(f(a)))
+            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1, a]);
+            maf(a -> k(f(a)))
         )
 
     pub def ap(mf: CodensityError[ka, ef1, a -> b \ ef2], ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1 + ef2, b] =
         CodensityError(k ->
-            apply1(unchecked_cast(mf as CodensityError[ka, ef + ef1 + ef2, a -> b \ ef2]), f ->
-                apply1(unchecked_cast(ma as CodensityError[ka, ef + ef1 + ef2, a]), a ->
-                    k(f(a))))
+            let CodensityError(mff) = unchecked_cast(mf as CodensityError[ka, ef + ef1 + ef2, a -> b \ ef2]);
+            mff(f ->
+                let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1 + ef2, a]);
+                maf(a -> k(f(a)))
+            )
         )
 
 
     pub def flatMap(f: a -> CodensityError[ka, ef1, b] \ ef2, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1 + ef2, b] =
         CodensityError(k ->
-            apply1(unchecked_cast(ma as CodensityError[ka, ef + ef1 + ef2, a]), a ->
-                apply1(unchecked_cast(f(a) as CodensityError[ka, ef + ef1 + ef2, b]), b ->
-                    k(b)))
+            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1 + ef2, a]);
+            maf(a ->
+                let CodensityError(faf) = unchecked_cast(f(a) as CodensityError[ka, ef + ef1 + ef2, b]);
+                faf(b ->k(b))
+            )
         )
 
     pub def throwError(msg: String): CodensityError[ka, ef, a] = 
@@ -146,7 +133,11 @@ mod Graded.CodensityError {
 
     pub def mapError(f: String -> String \ ef1, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1, a] = 
         CodensityError(k -> 
-            apply1WithHandler(unchecked_cast(ma as CodensityError[ka, ef + ef1, a]), a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1, a]);
+            match maf(k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => Err(f(msg))
+            }
         )
 
 
@@ -164,8 +155,14 @@ mod Graded.CodensityError {
 
     pub def orelse(ma: CodensityError[ka, ef1, a], mb: CodensityError[ka, ef2, a]): CodensityError[ka, ef1 + ef2, a] =
         CodensityError(k ->
-            apply1WithHandler(unchecked_cast(ma as CodensityError[ka, ef1 + ef2, a]), a -> k(a), _ -> 
-                apply1(unchecked_cast(mb as CodensityError[ka, ef1 + ef2, a]), b -> k(b)))
+            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef1 + ef2, a]);
+            match maf(k) {
+                case Ok(a)  => Ok(a)
+                case Err(_) => { 
+                    let CodensityError(mbf) = unchecked_cast(mb as CodensityError[ka, ef1 + ef2, a]);
+                    mbf(b -> k(b))
+                }
+            }
         )
 
     pub def liftEffect(f: Unit -> a \ ef): CodensityError[ka, ef, a] = 

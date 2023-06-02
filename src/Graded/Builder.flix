@@ -83,23 +83,6 @@ mod Graded.Builder {
     use Graded.Builder.{Builder}
 
 
-    def apply1(ma: Builder[ka, st, ef, a], 
-                s: st, 
-                k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let Builder(ma1) = ma;
-        ma1(s, k)
-
-
-    def apply1WithHandler(ma: Builder[ka, st, ef, a], 
-                            s: st, 
-                            k: a -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let Builder(ma1) = ma;
-        match ma1(s, k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
-
     ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
@@ -116,22 +99,25 @@ mod Graded.Builder {
 
     pub def map(f: a -> b \ ef, ma: Builder[ka, st, ef1, a]): Builder[ka, st, ef + ef1, b] =
         Builder((s, k) ->
-            apply1(unchecked_cast(ma as Builder[ka, st, ef + ef1, a]), s, a -> {let b = f(a); k(b)})
+            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1, a]);
+            maf(s, a -> {let b = f(a); k(b)})
         )
 
     pub def ap(mf: Builder[ka, st, ef1, a -> b \ ef2], ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1 + ef2, b] =
         Builder((s, k) ->
-            apply1(unchecked_cast(mf as Builder[ka, st, ef + ef1 + ef2, a -> b \ ef2]), s, f1 ->
-                apply1(unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]), s, a1 ->
-                    k(f1(a1))))
+            let Builder(mff) = unchecked_cast(mf as Builder[ka, st, ef + ef1 + ef2, a -> b \ ef2]);
+            mff(s, f1 ->
+                let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
+                maf(s, a1 -> k(f1(a1))))
         )
 
 
     pub def flatMap(f: a -> Builder[ka, st, ef1, b] \ ef2, ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1 + ef2, b] =
         Builder((s, k) ->
-            apply1(unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]), s, a ->
-                apply1(unchecked_cast(f(a) as Builder[ka, st, ef + ef1 + ef2, b]), s, b ->
-                    k(b)))
+            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
+            maf(s, a ->
+                let Builder(faf) = unchecked_cast(f(a) as Builder[ka, st, ef + ef1 + ef2, b]);
+                faf(s, b -> k(b)))
         )
 
 
@@ -144,19 +130,23 @@ mod Graded.Builder {
     pub def mapError(f: String -> String \ ef1, 
                         ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1, a]= 
         Builder((s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as Builder[ka, st, ef + ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1, a]);
+            match maf(s, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => Err(f(msg))
+            }
         )
 
 
     pub def catchError(ma: Builder[ka, st, ef, a], 
                         hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef + ef1 + ef2, a] = 
         Builder((s, k) -> 
-            let Builder(ma1) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
-            match ma1(s, k) {
+            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
+            match maf(s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let Builder(hdlr1) = unchecked_cast(hdlr(msg) as Builder[ka, st, ef + ef1 + ef2, a]); 
-                    hdlr1(s, k)
+                    let Builder(hdlrf) = unchecked_cast(hdlr(msg) as Builder[ka, st, ef + ef1 + ef2, a]); 
+                    hdlrf(s, k)
                 }
             }
         )
