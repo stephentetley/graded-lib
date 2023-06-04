@@ -1,3 +1,6 @@
+### v0.6.1
+   Added `RgnEnvEvaluator` and `GradedIterator`.
+
 ### v0.6.0
    Updated to use new effect syntax naming (`+` rather than `and`, `Eff` rather than `Bool`).
 

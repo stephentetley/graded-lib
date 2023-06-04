@@ -24,9 +24,6 @@ mod Graded {
     /// `local` is not supported.
     /// 
     /// `ka` is the continuation answer type
-    ///
-    /// Ideally `vs` would be vs: Region -> Type with r: Region but this currently causes 
-    /// a compiler crash (Flix issue #2113)
     ///    
     pub enum Evaluator[ka: Type, vs: Type, ef: Eff, a: Type](
         vs -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef

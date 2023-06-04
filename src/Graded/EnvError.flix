@@ -153,7 +153,11 @@ mod Graded.EnvError {
 
     pub def reifyError(ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef, Result[String, a]] = 
         EnvError((e, k) -> 
-            apply1WithHandler(ma, e, a -> k(Ok(a)), msg -> k(Err(msg)))
+            let EnvError(maf) = ma;
+            match maf(e, a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
 
     pub def empty(): EnvError[ka, env, ef, a] = throwError("empty")
