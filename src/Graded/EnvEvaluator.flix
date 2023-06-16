@@ -87,30 +87,6 @@ mod Graded.EnvEvaluator {
 
 
     ///
-    /// Helper function for the implementation of `map` and `ap` etc.
-    ///
-    def apply1(ma: EnvEvaluator[ka, env, vs, ef, a], 
-                e: env,
-                s: vs, 
-                k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let EnvEvaluator(ma1) = ma;
-        ma1(e, s, k)
-
-
-    def apply1WithHandler(ma: EnvEvaluator[ka, env, vs, ef, a], 
-                            e: env,
-                            s: vs,
-                            k: a -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let EnvEvaluator(ma1) = ma;
-        match ma1(e, s, k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
-
-
-
-    ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runEnvEvaluator(ma: EnvEvaluator[a, env, vs, ef, a], e: env, s: vs): Result[String, a] \ ef =
@@ -125,14 +101,17 @@ mod Graded.EnvEvaluator {
 
     pub def map(f: a -> b \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, b] =
         EnvEvaluator((e, s, k) ->
-            apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]), e, s, a -> k(f(a)))
+            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]);
+            maf(e, s, a -> k(f(a)))
         )
 
     pub def ap(mf: EnvEvaluator[ka, env, vs, ef1, a -> b \ ef2], 
                 ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] =
         EnvEvaluator((e, s, k) ->
-            apply1(unchecked_cast(mf as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a -> b \ ef2]), e, s, f ->
-                apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]), e, s, a ->
+            let EnvEvaluator(mff) = unchecked_cast(mf as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a -> b \ ef2]);
+            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
+            mff(e, s, f ->
+                maf(e, s, a ->
                     k(f(a))))
         )
 
@@ -140,8 +119,10 @@ mod Graded.EnvEvaluator {
     pub def flatMap(f: a -> EnvEvaluator[ka, env, vs, ef1, b] \ ef2, 
                     ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] =
         EnvEvaluator((e, s, k) ->
-            apply1(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]), e, s, a ->
-                apply1(unchecked_cast(f(a) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b]), e, s, b ->
+            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
+            maf(e, s, a ->
+                let EnvEvaluator(faf) = unchecked_cast(f(a) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b]);
+                faf(e, s, b ->
                     k(b)))
         )
 
@@ -151,32 +132,46 @@ mod Graded.EnvEvaluator {
     pub def catchError(ma: EnvEvaluator[ka, env, vs, ef, a], 
                         hdlr: String -> EnvEvaluator[ka, env, vs, ef1, a] \ ef2): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a] = 
         EnvEvaluator((e, s, k) -> 
-            let EnvEvaluator(ma1) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
-            match ma1(e, s, k) {
+            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
+            match maf(e, s, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
-                    let EnvEvaluator(hdlr1) = unchecked_cast(hdlr(msg) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]); 
-                    hdlr1(e, s, k)
+                    let EnvEvaluator(hdlrf) = unchecked_cast(hdlr(msg) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]); 
+                    hdlrf(e, s, k)
                 }
             }
         )
 
     pub def mapError(f: String -> String \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, a] = 
         EnvEvaluator((e, s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]), e, s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]);
+            match maf(e, s, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => checked_ecast(Err(f(msg)))
+            }
         )
 
     pub def reifyError(ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef, Result[String, a]] = 
         EnvEvaluator((e, s, k) -> 
-            apply1WithHandler(ma, e, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+            let EnvEvaluator(maf) = ma;
+            match maf(e, s, a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
 
     pub def empty(): EnvEvaluator[ka, env, vs, ef, a] = throwError("empty")
 
     pub def orelse(ma: EnvEvaluator[ka, env, vs, ef1, a], mb: EnvEvaluator[ka, env, vs, ef2, a]): EnvEvaluator[ka, env, vs, ef1 + ef2, a] =
         EnvEvaluator((e, s, k) ->
-            apply1WithHandler(unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef1 + ef2, a]), e, s, a -> k(a), _ -> 
-                apply1(unchecked_cast(mb as EnvEvaluator[ka, env, vs, ef1 + ef2, a]), e, s, b -> k(b)))
+            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef1 + ef2, a]);
+            match maf(e, s, k) {
+                case Ok(a)  => Ok(a)
+                case Err(_) =>  {
+                    let EnvEvaluator(mbf) = unchecked_cast(mb as EnvEvaluator[ka, env, vs, ef1 + ef2, a]);
+                    mbf(e, s, b -> k(b))
+                }
+            }
         )
 
 
@@ -245,8 +240,8 @@ mod Graded.EnvEvaluator {
 
     pub def local(f: env -> env1 \ ef1, ma: EnvEvaluator[ka, env1, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, a] = 
         EnvEvaluator((e, s, k) -> 
-            apply1(unchecked_cast(ma as EnvEvaluator[ka, env1, vs, ef + ef1, a]), f(e), s, a1 -> 
-                k(a1))
+            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env1, vs, ef + ef1, a]);
+            maf(f(e), s, k)
         )
 
 

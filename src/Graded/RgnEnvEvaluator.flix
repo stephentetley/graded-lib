@@ -247,7 +247,7 @@ mod Graded.RgnEnvEvaluator {
         )
 
     // f should not throw an exception
-    pub def liftGetterResultWithRgn(f: Region[r] -> vs -> Result[s, a] \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] with ToString[s] = 
+    pub def liftGetterResultWithRgn(f: Region[r] -> vs -> Result[err, a] \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] with ToString[err] = 
         RgnEnvEvaluator((rc, _, s, k) ->
             match f(rc, s) { 
                 case Ok(a)    => k(a)
