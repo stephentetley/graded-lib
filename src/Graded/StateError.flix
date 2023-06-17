@@ -74,27 +74,6 @@ mod Graded.StateError {
 
 
     ///
-    /// Helper function for the implementation of `map` and `ap` etc.
-    ///
-    def apply1(ma: StateError[ka, st, ef, a], 
-                s: st, 
-                k: a -> st -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let StateError(ma1) = ma;
-        ma1(s, k)
-
-    def apply1WithHandler(ma: StateError[ka, st, ef, a], 
-                            s: st, 
-                            k: a -> st -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let StateError(ma1) = ma;
-        match ma1(s, k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
-
-
-
-    ///
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def runStateError(ma: StateError[(st, a), st, ef, a], s: st): Result[String, (st, a)] \ ef =
@@ -107,27 +86,26 @@ mod Graded.StateError {
 
     pub def map(f: a -> b \ ef1, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1, b] =
         StateError((s, k) ->
-            apply1(unchecked_cast(ma as StateError[ka, st, ef + ef1, a]), s, (a, s1) -> {let b = f(a); k(b, s1)})
+            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1, a]);
+            maf(s, (a, s1) -> k(f(a), s1))
         )
 
     pub def ap(mf: StateError[ka, st, ef1, a -> b \ ef2], ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1 + ef2, b] =
         StateError((s, k) ->
-            apply1(unchecked_cast(mf as StateError[ka, st, ef + ef1 + ef2, a -> b \ ef2]), s, (f, s1) ->
-                apply1(unchecked_cast(ma as StateError[ka, st, ef + ef1 + ef2, a]), s1, (a, s2) ->
+            let StateError(mff) = unchecked_cast(mf as StateError[ka, st, ef + ef1 + ef2, a -> b \ ef2]);
+            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1 + ef2, a]);
+            mff(s, (f, s1) ->
+                maf(s1, (a, s2) ->
                     k(f(a), s2)))
         )
 
     pub def flatMap(f: a -> StateError[ka, st, ef1, b] \ ef2, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1 + ef2, b] =
         StateError((s, k) ->
-            apply1(unchecked_cast(ma as StateError[ka, st, ef + ef1 + ef2, a]), s, (a, s1) ->
-                apply1(unchecked_cast(f(a) as StateError[ka, st, ef + ef1 + ef2, b]), s1, (b, s2) ->
+            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1 + ef2, a]);
+            maf(s, (a, s1) ->
+                let StateError(faf) = unchecked_cast(f(a) as StateError[ka, st, ef + ef1 + ef2, b]);
+                faf(s1, (b, s2) ->
                     k(b, s2)))
-        )
-
-    pub def orelse(ma: StateError[ka, st, ef1, a], mb: StateError[ka, st, ef2, a]): StateError[ka, st, ef1 + ef2, a] =
-        StateError((s, k) ->
-            apply1WithHandler(unchecked_cast(ma as StateError[ka, st, ef1 + ef2, a]), s, a ->  k(a), _ -> 
-                apply1(unchecked_cast(mb as StateError[ka, st, ef1 + ef2, a]), s, b -> k(b)))
         )
 
     pub def throwError(msg: String): StateError[r, ka, st, a] = 
@@ -148,13 +126,34 @@ mod Graded.StateError {
 
     pub def mapError(f: String -> String \ ef1, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1, a] = 
         StateError((s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as StateError[ka, st, ef + ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1, a]);
+            match maf(s, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => checked_ecast(Err(f(msg)))
+            }
         )
 
     pub def reifyError(ma: StateError[ka, st, ef, a]): StateError[ka, st, ef, Result[String, a]] = 
         StateError((s, k) -> 
-            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg), s))
+           let StateError(maf) = ma;
+            match maf(s, (a, s1) -> k(Ok(a), s1)) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg), s)
+            }
         )
+
+    pub def orelse(ma: StateError[ka, st, ef1, a], mb: StateError[ka, st, ef2, a]): StateError[ka, st, ef1 + ef2, a] =
+        StateError((s, k) ->
+            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef1 + ef2, a]);
+            match maf(s, k) {
+                case Ok(a)  => Ok(a)
+                case Err(_) =>  {
+                    let StateError(mbf) = unchecked_cast(mb as StateError[ka, st, ef1 + ef2, a]);
+                    mbf(s, b -> k(b))
+                }
+            }
+        )
+
 
     pub def update(f: s -> s \ ef1): StateError[ka, s, ef + ef1, Unit] = 
         StateError((s, k) -> 

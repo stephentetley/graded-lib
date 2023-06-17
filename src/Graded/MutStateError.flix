@@ -81,32 +81,15 @@ mod Graded.MutStateError {
     use Graded.MutStateError.{MutStateError}
 
 
-    def apply1(ma: MutStateError[ka, st, ef, a], 
-                s: st, 
-                k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let MutStateError(ma1) = ma;
-        ma1(s, k)
-
-
-    def apply1WithHandler(ma: MutStateError[ka, st, ef, a], 
-                            s: st, 
-                            k: a -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let MutStateError(ma1) = ma;
-        match ma1(s, k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
-
     
     ///
-    /// Returns the result of applying `ma` to the state `s`.
+    /// Returns the result of applying `ma` to the state `vs`.
     ///
     pub def runMutStateError(ma: MutStateError[a, st, ef, a], 
-                                s: st): Result[String, a] \ ef =
+                                vs: st): Result[String, a] \ ef =
         let MutStateError(f) = ma;
         let cont = ans -> checked_ecast(Ok(ans));
-        f(s, cont)
+        f(vs, cont)
 
 
     pub def point(x: a): MutStateError[ka, st, ef, a] = 
@@ -114,22 +97,27 @@ mod Graded.MutStateError {
 
 
     pub def map(f: a -> b \ ef, ma: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef + ef1, b] =
-        MutStateError((s, k) ->
-            apply1(unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]), s, a -> {let b = f(a); k(b)})
+        MutStateError((vs, k) ->
+            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]);
+            maf(vs, a -> k(f(a)))
         )
 
     pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef2], ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1 + ef2, b] =
-        MutStateError((s, k) ->
-            apply1(unchecked_cast(mf as MutStateError[ka, st, ef + ef1 + ef2, a -> b \ ef2]), s, f1 ->
-                apply1(unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]), s, a1 ->
-                    k(f1(a1))))
+        MutStateError((vs, k) ->
+            let MutStateError(mff) = unchecked_cast(mf as MutStateError[ka, st, ef + ef1 + ef2, a -> b \ ef2]);
+            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]);
+            mff(vs, f ->
+                maf(vs, a ->
+                    k(f(a))))
         )
 
 
     pub def flatMap(f: a -> MutStateError[ka, st, ef1, b] \ ef, ma: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef + ef1 + ef2, b] =
-        MutStateError((s, k) ->
-            apply1(unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]), s, a ->
-                apply1(unchecked_cast(f(a) as MutStateError[ka, st, ef + ef1 + ef2, b]), s, b ->
+        MutStateError((vs, k) ->
+            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]);
+            maf(vs, a ->
+                let MutStateError(faf) = unchecked_cast(f(a) as MutStateError[ka, st, ef + ef1 + ef2, b]);
+                faf(vs, b ->
                     k(b)))
         )
 
@@ -141,34 +129,41 @@ mod Graded.MutStateError {
         MutStateError((_, _) -> checked_ecast(Err(msg)))
 
     pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1, a] = 
-        MutStateError((s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]), s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+        MutStateError((vs, k) -> 
+            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]);
+            match maf(vs, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => checked_ecast(Err(f(msg)))
+            }
         )
-
     pub def catchError(ma: MutStateError[ka, st, ef, a], 
                         hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef + ef1 + ef2, a] = 
-        MutStateError((s, k) -> 
+        MutStateError((vs, k) -> 
             let MutStateError(ma1) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]);
-            match ma1(s, k) {
+            match ma1(vs, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
                     let MutStateError(hdlr1) = unchecked_cast(hdlr(msg) as MutStateError[ka, st, ef + ef1 + ef2, a]); 
-                    hdlr1(s, k)
+                    hdlr1(vs, k)
                 }
             }
         )
     
     pub def reifyError(ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef, Result[String, a]] = 
-        MutStateError((s, k) -> 
-            apply1WithHandler(ma, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+        MutStateError((vs, k) -> 
+            let MutStateError(maf) = ma;
+            match maf(vs, a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
 
 
     /// ideally something like > Err(liftApp(@ \ ef, getMessage, ex)) 
     pub def liftGetter(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
-        MutStateError((s, k) ->
+        MutStateError((vs, k) ->
             try {
-                let ans = f(s);
+                let ans = f(vs);
                 k(ans)
             } catch {
                 case ex: ##java.lang.Exception => 
@@ -179,17 +174,17 @@ mod Graded.MutStateError {
 
     // f should not throw an exception
     pub def liftGetterResult(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
-        MutStateError((s, k) ->
-            match f(s) { 
+        MutStateError((vs, k) ->
+            match f(vs) { 
                 case Ok(a)  => k(a)
                 case Err(e) => Err(ToString.toString(e))
             } 
         )
 
     pub def liftSetter!(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
-        MutStateError((s, k) ->
+        MutStateError((vs, k) ->
             try {
-                let a = f(s); 
+                let a = f(vs); 
                 k(a)
             } catch {
                 case ex: ##java.lang.Exception => 
@@ -200,8 +195,8 @@ mod Graded.MutStateError {
 
     // f should not throw an exception
     pub def liftSetterResult!(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
-        MutStateError((s, k) ->
-            match f(s) {
+        MutStateError((vs, k) ->
+            match f(vs) {
                 case Ok(a)    => k(a)
                 case Err(err) => Err(ToString.toString(err))
             } 

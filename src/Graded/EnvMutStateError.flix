@@ -74,61 +74,46 @@ mod Graded.EnvMutStateError {
     use Graded.EnvMutStateError
     use Graded.EnvMutStateError.{EnvMutStateError}
 
-    ///
-    /// Helper function for the implementation of `map` and `ap` etc.
-    ///
-    def apply1(ma: EnvMutStateError[ka, env, st, ef, a],
-                e: env,
-                s: st, 
-                k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let EnvMutStateError(ma1) = ma;
-        ma1(e, s, k)
-
-    def apply1WithHandler(ma: EnvMutStateError[ka, env, st, ef, a], 
-                            e: env,
-                            s: st, 
-                            k: a -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let EnvMutStateError(ma1) = ma;
-        match ma1(e, s, k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
 
 
     ///
-    /// Returns the result of applying `ma` to the state `s` and env `e`.
+    /// Returns the result of applying `ma` to the state `vs` and env `e`.
     ///
     pub def runEnvMutStateError(ma: EnvMutStateError[a, env, st, ef, a],
                                 e: env,
-                                s: st): Result[String, a] \ ef =
+                                vs: st): Result[String, a] \ ef =
         let EnvMutStateError(f) = ma;
         let cont = a -> checked_ecast(Ok(a));
-        f(e, s, cont)
+        f(e, vs, cont)
 
 
     pub def point(x: a): EnvMutStateError[ka, env, ef, st, a] = 
         EnvMutStateError((_, _, k) -> k(x))
 
     pub def map(f: a -> b \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1, b] =
-        EnvMutStateError((e, s, k) ->
-            apply1(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1, a]), e, s, a -> k(f(a)))
+        EnvMutStateError((e, vs, k) ->
+            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1, a]);
+            maf(e, vs, a -> k(f(a)))
         )
 
     pub def ap(mf: EnvMutStateError[ka, env, st, ef1, a -> b \ ef2], 
                 ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1 + ef2, b] =
-        EnvMutStateError((e, s, k) ->
-            apply1(unchecked_cast(mf as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a -> b \ ef2]), e, s, f ->
-                apply1(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]), e, s, a ->
+        EnvMutStateError((e, vs, k) ->
+            let EnvMutStateError(mff) = unchecked_cast(mf as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a -> b \ ef2]);
+            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]);
+            mff(e, vs, f ->
+                maf(e, vs, a ->
                     k(f(a))))
         )
 
 
     pub def flatMap(f: a -> EnvMutStateError[ka, env, st, ef1, b] \ ef2, 
                     ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1 + ef2, b] =
-        EnvMutStateError((e, s, k) ->
-            apply1(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]), e, s, a ->
-                apply1(unchecked_cast(f(a) as EnvMutStateError[ka, env, st, ef + ef1 + ef2, b]), e, s, b ->
+        EnvMutStateError((e, vs, k) ->
+            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]);
+            maf(e, vs, a ->
+                let EnvMutStateError(faf) = unchecked_cast(f(a) as EnvMutStateError[ka, env, st, ef + ef1 + ef2, b]);
+                faf(e, vs, b ->
                     k(b)))
         )
 
@@ -136,27 +121,37 @@ mod Graded.EnvMutStateError {
         EnvMutStateError((_, _, _) -> checked_ecast(Err(msg)))
 
 
-    pub def mapError(f: String -> String \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1, a] = 
-        EnvMutStateError((e, s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1, a]), e, s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
-        )
-   
     pub def catchError(ma: EnvMutStateError[ka, env, st, ef, a], 
                         hdlr: String -> EnvMutStateError[ka, env, st, ef1, a] \ ef2): EnvMutStateError[ka, env, st, ef + ef1 + ef2, a] = 
-        EnvMutStateError((e, s, k) -> 
+        EnvMutStateError((e, vs, k) -> 
             let EnvMutStateError(ma1) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]);
-            match ma1(e, s, k) {
+            match ma1(e, vs, k) {
                 case Ok(a)    => Ok(a)
                 case Err(msg) => { 
                     let EnvMutStateError(hdlr1) = unchecked_cast(hdlr(msg) as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]); 
-                    hdlr1(e, s, k)
+                    hdlr1(e, vs, k)
                 }
             }
         )
 
+
+    pub def mapError(f: String -> String \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1, a] = 
+        EnvMutStateError((e, vs, k) -> 
+            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1, a]);
+            match maf(e, vs, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => checked_ecast(Err(f(msg)))
+            }
+        )
+   
+
     pub def reifyError(ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef, Result[String, a]] = 
-        EnvMutStateError((e, s, k) -> 
-            apply1WithHandler(ma, e, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+        EnvMutStateError((e, vs, k) -> 
+            let EnvMutStateError(maf) = ma;
+            match maf(e, vs, a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
 
     pub def liftGetter(f: env -> st -> a \ ef): EnvMutStateError[ka, env, st, ef, a] = 
@@ -222,9 +217,9 @@ mod Graded.EnvMutStateError {
         EnvMutStateError((e, _, k) -> k(f(e)))
 
     pub def local(f: env -> env1 \ ef1, ma: EnvMutStateError[ka, env1, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1, a] = 
-        EnvMutStateError((e, s, k) -> 
-            apply1(unchecked_cast(ma as EnvMutStateError[ka, env1, st, ef + ef1, a]), f(e), s, a1 -> 
-                k(a1))
+        EnvMutStateError((e, vs, k) -> 
+            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env1, st, ef + ef1, a]);
+            maf(f(e), vs, k)
         )
 
 }

@@ -80,30 +80,6 @@ mod Graded.RgnEnvEvaluator {
     use Graded.EnvEvaluator
     use Graded.EnvEvaluator.{EnvEvaluator}
 
-    ///
-    /// Helper function for the implementation of `map` and `ap` etc.
-    ///
-    def apply1(ma: RgnEnvEvaluator[ka, r, env, vs, ef, a], 
-                rc: Region[r],
-                e: env,
-                s: vs, 
-                k: a -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let RgnEnvEvaluator(ma1) = ma;
-        ma1(rc, e, s, k)
-
-
-    def apply1WithHandler(ma: RgnEnvEvaluator[ka, r, env, vs, ef, a], 
-                            rc: Region[r],
-                            e: env,
-                            s: vs,
-                            k: a -> Result[String, ka] \ ef, 
-                            handleK: String -> Result[String, ka] \ ef): Result[String, ka] \ ef =
-        let RgnEnvEvaluator(ma1) = ma;
-        match ma1(rc, e, s, k) {
-            case Err(msg) => handleK(msg)
-            case Ok(a)    => Ok(a)
-        }
-
 
     ///
     /// Returns the result of applying `ma` to the state `s`.
@@ -136,14 +112,17 @@ mod Graded.RgnEnvEvaluator {
 
     pub def map(f: a -> b \ ef1, ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1, b] =
         RgnEnvEvaluator((rc, e, s, k) ->
-            apply1(unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a]), rc, e, s, a -> k(f(a)))
+            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a]);
+            maf(rc, e, s, a -> k(f(a)))
         )
 
     pub def ap(mf: RgnEnvEvaluator[ka, r, env, vs, ef1, a -> b \ ef2], 
                 ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, b] =
         RgnEnvEvaluator((rc, e, s, k) ->
-            apply1(unchecked_cast(mf as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a -> b \ ef2]), rc, e, s, f ->
-                apply1(unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]), rc, e, s, a ->
+            let RgnEnvEvaluator(mff) = unchecked_cast(mf as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a -> b \ ef2]);
+            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]);
+            mff(rc, e, s, f ->
+                maf(rc, e, s, a ->
                     k(f(a))))
         )
 
@@ -151,8 +130,10 @@ mod Graded.RgnEnvEvaluator {
     pub def flatMap(f: a -> RgnEnvEvaluator[ka, r, env, vs, ef1, b] \ ef2, 
                     ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, b] =
         RgnEnvEvaluator((rc, e, s, k) ->
-            apply1(unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]), rc, e, s, a ->
-                apply1(unchecked_cast(f(a) as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, b]), rc, e, s, b ->
+            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]);
+            maf(rc, e, s, a ->
+                let RgnEnvEvaluator(faf) = unchecked_cast(f(a) as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, b]);
+                faf(rc, e, s, b ->
                     k(b)))
         )
 
@@ -174,20 +155,34 @@ mod Graded.RgnEnvEvaluator {
 
     pub def mapError(f: String -> String \ ef1, ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a] = 
         RgnEnvEvaluator((rc, e, s, k) -> 
-            apply1WithHandler(unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a]), rc, e, s, a -> k(a), msg -> checked_ecast(Err(f(msg))))
+            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a]);
+            match maf(rc, e, s, k) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => checked_ecast(Err(f(msg)))
+            }
         )
 
     pub def reifyError(ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef, Result[String, a]] = 
         RgnEnvEvaluator((rc, e, s, k) -> 
-            apply1WithHandler(ma, rc, e, s, a -> k(Ok(a)), msg -> k(Err(msg)))
+            let RgnEnvEvaluator(maf) = ma;
+            match maf(rc, e, s, a -> k(Ok(a))) {
+                case Ok(a)    => Ok(a)
+                case Err(msg) => k(Err(msg))
+            }
         )
 
     pub def empty(): RgnEnvEvaluator[ka, r, env, vs, ef, a] = throwError("empty")
 
     pub def orelse(ma: RgnEnvEvaluator[ka, r, env, vs, ef1, a], mb: RgnEnvEvaluator[ka, r, env, vs, ef2, a]): RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a] =
         RgnEnvEvaluator((rc, e, s, k) ->
-            apply1WithHandler(unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a]), rc, e, s, a -> k(a), _ -> 
-                apply1(unchecked_cast(mb as RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a]), rc, e, s, b -> k(b)))
+            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a]);
+            match maf(rc, e, s, k) {
+                case Ok(a)  => Ok(a)
+                case Err(_) =>  {
+                    let RgnEnvEvaluator(mbf) = unchecked_cast(mb as RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a]);
+                    mbf(rc, e, s, b -> k(b))
+                }
+            }
         )
 
 
@@ -292,8 +287,8 @@ mod Graded.RgnEnvEvaluator {
 
     pub def local(f: env -> env1 \ ef1, ma: RgnEnvEvaluator[ka, r, env1, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a] = 
         RgnEnvEvaluator((rc, e, s, k) -> 
-            apply1(unchecked_cast(ma as RgnEnvEvaluator[ka, r, env1, vs, ef + ef1, a]), rc, f(e), s, a1 -> 
-                k(a1))
+            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env1, vs, ef + ef1, a]);
+            maf(rc, f(e), s, k)
         )
 
 
