@@ -1,5 +1,6 @@
 ### Next...
    Inlined and eliminated `apply...` functions.
+   Added `when...` family of functions.
 
 ### v0.6.1
    Added `RgnEnvEvaluator` and `GradedIterator`.

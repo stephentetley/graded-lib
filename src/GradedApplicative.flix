@@ -134,6 +134,35 @@ mod GradedApplicative {
               (ma: m[ef1, a], mb: m[ef2, b]): m[ef1 + ef2, b] with GradedApplicative[m] = 
         productRight(ma, mb)
 
+    pub def whenTrue[ef: Eff, m: Eff -> Type -> Type]
+                    (x: Bool, ma: m[ef, Unit]): m[ef, Unit] with GradedApplicative[m] = 
+        match x { 
+            case true  => ma
+            case false => point()
+        }
+
+    pub def whenFalse[ef: Eff, m: Eff -> Type -> Type]
+                        (x: Bool, ma: m[ef, Unit]): m[ef, Unit] with GradedApplicative[m] = 
+        match x { 
+            case true  => point()
+            case false => ma
+        }
+
+
+    pub def whenSome[a: Type, ef: Eff, m: Eff -> Type -> Type]
+                    (x: Option[a], f: a -> m[ef, Unit]): m[ef, Unit] with GradedApplicative[m] = 
+        match x { 
+            case Some(a) => f(a)
+            case None => point()
+        }
+
+    pub def whenNone[a: Type, ef: Eff, m: Eff -> Type -> Type]
+                        (x: Option[a], ma: m[ef, Unit]): m[ef, Unit] with GradedApplicative[m] = 
+        match x { 
+            case Some(_) => point()
+            case None => ma
+        }
+
 }
 
 

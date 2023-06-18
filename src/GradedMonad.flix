@@ -27,7 +27,7 @@ pub class GradedMonad[m: Eff -> Type -> Type] with GradedApplicative[m] {
 
 mod GradedMonad {
 
-
+    use GradedApplicative.{point}
 
     ///
     /// The graded version of the monadic `join` operator.
@@ -70,6 +70,39 @@ mod GradedMonad {
                (x: m[ef1, a], k: a -> m[ef2, b] \ ef): m[ef1 + ef2 + ef, b] with GradedMonad[m] = 
         GradedMonad.flatMap(k, x)
 
+    pub def whenTrueM[ef: Eff, ef1: Eff, m: Eff -> Type -> Type]
+                        (mx: m[ef, Bool], ma: m[ef1, Unit]): m[ef + ef1, Unit] with GradedMonad[m] = 
+        
+        mx >>= ans -> 
+        match ans { 
+            case true  => ma
+            case false => point()
+        }
+
+    pub def whenFalseM[ef: Eff, ef1: Eff, m: Eff -> Type -> Type]
+                        (mx: m[ef, Bool], ma: m[ef1, Unit]): m[ef + ef1, Unit] with GradedMonad[m] = 
+        mx >>= ans ->
+        match ans { 
+            case true  => point()
+            case false => ma
+        }
+
+
+    pub def whenSomeM[a: Type, ef: Eff, ef1: Eff, m: Eff -> Type -> Type]
+                        (mx: m[ef, Option[a]], f: a -> m[ef1, Unit]): m[ef + ef1, Unit] with GradedMonad[m] = 
+        mx >>= ans ->
+        match ans { 
+            case Some(a) => f(a)
+            case None    => point()
+        }
+
+    pub def whenNoneM[a: Type, ef: Eff, ef1: Eff, m: Eff -> Type -> Type]
+                        (mx: m[ef, Option[a]], ma: m[ef1, Unit]): m[ef + ef1, Unit] with GradedMonad[m] = 
+        mx >>= ans ->
+        match ans { 
+            case Some(_) => point()
+            case None    => ma
+        }
 
 }
 
