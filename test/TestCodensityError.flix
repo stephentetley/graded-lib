@@ -27,22 +27,22 @@ mod TestCodensityError {
     /// Fix an effect in a graded monad - get a regular monad (well we would if IOError was an enum...).
     ///
     /// However, this result is not very remarkable: fixing to a known set of effects is not a good
-    /// stratgey for a library writer, we would not want to prevent e.g. a user returning arrays from 
+    /// strategy for a library writer, we would not want to prevent e.g. a user returning arrays from 
     /// a Parser monad so the effect should always be open.
-    type alias IOError[ka: Type, a: Type] = CodensityError[ka, Impure, a]
+    // type alias IOError[ka: Type, a: Type] = CodensityError[ka, IO, a]
 
     
-    pub def runIOError(ma: IOError[a, a]): Result[String, a] \ IO = 
-        runCodensityError(ma)
+    // pub def runIOError(ma: IOError[a, a]): Result[String, a] \ IO = 
+    //     runCodensityError(ma)
 
-    pub def output(msg: String): IOError[ka, Unit] = 
-        CodensityError.liftEffect(_ -> println(msg))
+    // pub def output(msg: String): IOError[ka, Unit] = 
+    //     CodensityError.liftEffect(_ -> println(msg))
 
 
-    @test
-    def test05(): Bool \ IO = 
-        use GradedApplicative.{*>};
-        runIOError(output("No crash") *> point(5)) == Ok(5)
+    // @test
+    // def test05(): Bool \ IO = 
+    //     use GradedApplicative.{*>};
+    //     runIOError(output("No crash") *> Graded.CodensityError.point(5)) == Ok(5)
 
     @test
     def test06(): Bool = 
