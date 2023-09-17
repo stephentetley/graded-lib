@@ -26,8 +26,8 @@ mod Graded {
     /// Ideally `st` would be `st`: Region -> Type with r: Region but this currently causes a compiler
     /// crash (Flix issue #2113)
     ///
-    pub enum Builder[ka: Type, st: Type, ef: Eff, a: Type](
-        st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
+    pub enum Builder[ka: Type, st: Type, _ef: Eff, a: Type](
+        st -> (a -> Result[String, ka] \ IO) -> Result[String, ka] \ IO
     )
 
     instance GradedFunctor[Builder[ka, st]] { 
@@ -90,132 +90,116 @@ mod Graded.Builder {
                         s: st): Result[String, a] \ ef =
         let Builder(f) = ma;
         let cont = ans -> checked_ecast(Ok(ans));
-        f(s, cont)
+        unchecked_cast(f(s, cont) as _ \ ef)
 
 
     pub def point(x: a): Builder[ka, st, ef, a] = 
-        Builder((_, k) -> k(x))
+        def run(_, k) = k(x);
+        Builder(run)
 
 
     pub def map(f: a -> b \ ef, ma: Builder[ka, st, ef1, a]): Builder[ka, st, ef + ef1, b] =
-        Builder((s, k) ->
-            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1, a]);
-            maf(s, a -> {let b = f(a); k(b)})
-        )
+        let Builder(g) = ma;
+        def run(s, k) = g(s, a -> k(f(a)));
+        Builder(run)
 
     pub def ap(mf: Builder[ka, st, ef1, a -> b \ ef2], ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1 + ef2, b] =
-        Builder((s, k) ->
-            let Builder(mff) = unchecked_cast(mf as Builder[ka, st, ef + ef1 + ef2, a -> b \ ef2]);
-            mff(s, f1 ->
-                let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
-                maf(s, a1 -> k(f1(a1))))
-        )
+        let Builder(g) = mf;
+        let Builder(h) = ma;
+        def run(s, k) = g(s, f1 -> h(s, a -> k(f1(a))));
+        Builder(run)
 
 
     pub def flatMap(f: a -> Builder[ka, st, ef1, b] \ ef2, ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1 + ef2, b] =
-        Builder((s, k) ->
-            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
-            maf(s, a ->
-                let Builder(faf) = unchecked_cast(f(a) as Builder[ka, st, ef + ef1 + ef2, b]);
-                faf(s, b -> k(b)))
-        )
+        let Builder(g) = ma;
+        def run(s, k) = g(s, a -> {let Builder(h) = f(a); h(s, k)});
+        Builder(run)
 
 
     pub def empty(): Builder[ka, st, ef, a] = 
         throwError("empty")
 
     pub def throwError(msg: String): Builder[ka, st, ef, a] = 
-        Builder((_, _) -> checked_ecast(Err(msg)))
-
-    pub def mapError(f: String -> String \ ef1, 
-                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1, a]= 
-        Builder((s, k) -> 
-            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1, a]);
-            match maf(s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => Err(f(msg))
-            }
-        )
-
+        def run(_, _) = checked_ecast(Err(msg));
+        Builder(run)
 
     pub def catchError(ma: Builder[ka, st, ef, a], 
                         hdlr: String -> Builder[ka, st, ef1, a] \ ef2): Builder[ka, st, ef + ef1 + ef2, a] = 
-        Builder((s, k) -> 
-            let Builder(maf) = unchecked_cast(ma as Builder[ka, st, ef + ef1 + ef2, a]);
-            match maf(s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let Builder(hdlrf) = unchecked_cast(hdlr(msg) as Builder[ka, st, ef + ef1 + ef2, a]); 
-                    hdlrf(s, k)
-                }
-            }
-        )
+        let Builder(g) = ma;
+        def run(s, k) = match g(s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let Builder(h) = hdlr(msg); h(s, k)}
+        };
+        Builder(run)
 
+    pub def mapError(f: String -> String \ ef1, 
+                        ma: Builder[ka, st, ef, a]): Builder[ka, st, ef + ef1, a]= 
+        let Builder(g) = ma;
+        def run(s, k) = match g(s, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        Builder(run)
     
     pub def reifyError(ma: Builder[ka, st, ef, a]): Builder[ka, st, ef, Result[String, a]] = 
-        Builder((s, k) -> 
-            let Builder(maf) = ma;
-            match maf(s, a -> k(Ok(a))) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg))
-            }
-        )
+        let Builder(g) = ma;
+        def run(e, k) = match g(e, a -> k(Ok(a))) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg))
+        };
+        Builder(run)
 
     pub def liftGetter(f: st -> a \ ef): Builder[ka, st, ef, a] = 
-        Builder((s, k) ->
-            try {
-                let ans = f(s);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }            
-        )
+        def run(s, k) = try {
+            let ans = f(s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        Builder(run)
 
     // f should not throw an exception
     pub def liftGetterResult(f: st -> Result[e, a] \ ef): Builder[ka, st, ef, a] with ToString[e] = 
-        Builder((s, k) ->
-            match f(s) { 
-                case Ok(a)  => k(a)
-                case Err(e) => Err(ToString.toString(e))
-            } 
-        )
+        def run(e, k) =  match f(e) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        Builder(run)
 
     pub def liftSetter!(f: st -> a \ ef): Builder[ka, st, ef, a] = 
-        Builder((s, k) ->
-            try {
-                let a = f(s); 
-                k(a)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }            
-        )
+        def run (s, k) = try {
+            let a = f(s); 
+            k(a)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        Builder(run)
 
     // f should not throw an exception
     pub def liftSetterResult!(f: st -> Result[e, a] \ ef): Builder[ka, st, ef, a] with ToString[e] = 
-        Builder((s, k) ->
-            match f(s) {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(s, k) = match f(s) {
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        Builder(run)
 
 
     pub def liftAction(f: Unit -> a \ ef): Builder[ka, st, ef, a] = 
-        Builder((_, k) ->
+        def run(_, k) = {
             let a = f();
             k(a)
-        )
+        };
+        Builder(run)
 
     pub def liftActionResult(f: Unit -> Result[e, a] \ ef): Builder[ka, st, ef, a] with ToString[e] = 
-        Builder((_, k) ->
-            match f() {
-                case Ok(a)  => k(a)
-                case Err(e) => Err(ToString.toString(e))
-            }
-        )
+        def run(_, k) = match f() {
+            case Ok(a)  => k(a)
+            case Err(e) => Err(ToString.toString(e))
+        };
+        Builder(run)
 
 }
