@@ -88,7 +88,8 @@ mod Graded.CodensityError {
 
 
     pub def point(x: a): CodensityError[ka, ef, a] = 
-        CodensityError(k -> k(x))
+        def run(k) = k(x);
+        CodensityError(run)
 
     pub def map(f: a -> b \ ef1, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1, b] =
         let CodensityError(g) = ma;
@@ -107,7 +108,8 @@ mod Graded.CodensityError {
         CodensityError(run)
 
     pub def throwError(msg: String): CodensityError[ka, ef, a] = 
-        CodensityError(_ -> checked_ecast(Err(msg)))
+        def run(_) = checked_ecast(Err(msg));
+        CodensityError(run)
 
     pub def catchError(ma: CodensityError[ka, ef, a], 
                         hdlr: String -> CodensityError[ka, ef1, a] \ ef2): CodensityError[ka, ef + ef1 + ef2, a] = 

@@ -21,8 +21,8 @@ mod Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    pub enum StateError[ka: Type, st: Type, ef: Eff, a: Type](
-        st -> (a -> st -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
+    pub enum StateError[ka: Type, st: Type, _ef: Eff, a: Type](
+        st -> (a -> st -> Result[String, ka] \ IO) -> Result[String, ka] \ IO)
 
     instance GradedFunctor[StateError[ka, st]] { 
         pub def map(f: a -> b \ ef1, m: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1, b] = 
@@ -78,103 +78,85 @@ mod Graded.StateError {
     ///
     pub def runStateError(ma: StateError[(st, a), st, ef, a], s: st): Result[String, (st, a)] \ ef =
         let StateError(f) = ma;
-        let cont = (a, s1) -> checked_ecast (Ok(s1, a));
-        f(s, cont)
+        let cont = (a, s1) -> checked_ecast(Ok(s1, a));
+        unchecked_cast(f(s, cont) as _ \ ef)
 
     pub def point(x: a): StateError[ka, st, ef, a] = 
-        StateError((s, k) -> k(x, s))
+        def run(s, k) = k(x, s);
+        StateError(run)
 
     pub def map(f: a -> b \ ef1, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1, b] =
-        StateError((s, k) ->
-            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1, a]);
-            maf(s, (a, s1) -> k(f(a), s1))
-        )
+        let StateError(g) = ma;
+        def run(s, k) = g(s, (a, s1) -> k(f(a), s1));
+        StateError(run)
+
 
     pub def ap(mf: StateError[ka, st, ef1, a -> b \ ef2], ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1 + ef2, b] =
-        StateError((s, k) ->
-            let StateError(mff) = unchecked_cast(mf as StateError[ka, st, ef + ef1 + ef2, a -> b \ ef2]);
-            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1 + ef2, a]);
-            mff(s, (f, s1) ->
-                maf(s1, (a, s2) ->
-                    k(f(a), s2)))
-        )
+        let StateError(g) = mf;
+        let StateError(h) = ma;
+        def run(s, k) = g(s, (f1, s1) -> h(s1, (a, s2) -> k(f1(a), s2)));
+        StateError(run)
 
     pub def flatMap(f: a -> StateError[ka, st, ef1, b] \ ef2, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1 + ef2, b] =
-        StateError((s, k) ->
-            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1 + ef2, a]);
-            maf(s, (a, s1) ->
-                let StateError(faf) = unchecked_cast(f(a) as StateError[ka, st, ef + ef1 + ef2, b]);
-                faf(s1, (b, s2) ->
-                    k(b, s2)))
-        )
+        let StateError(g) = ma;
+        def run(s, k) = g(s, (a, s1) -> {let StateError(h) = f(a); h(s1, k)});
+        StateError(run)
 
     pub def throwError(msg: String): StateError[r, ka, st, a] = 
-        StateError((_, _) -> checked_ecast(Err(msg)))
+        def run(_, _) = checked_ecast(Err(msg));
+        StateError(run)
 
     pub def catchError(ma: StateError[ka, st, ef, a], 
                         hdlr: String -> StateError[ka, st, ef1, a] \ ef2): StateError[ka, st, ef + ef1 + ef2, a] = 
-        StateError((s, k) -> 
-            let StateError(ma1) = unchecked_cast(ma as StateError[ka, st, ef + ef1 + ef2, a]);
-            match ma1(s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let StateError(hdlr1) = unchecked_cast(hdlr(msg) as StateError[ka, st, ef + ef1 + ef2, a]); 
-                    hdlr1(s, k)
-                }
-            }
-        )
+        let StateError(g) = ma;
+        def run(s, k) = match g(s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let StateError(h) = hdlr(msg); h(s, k)}
+        };
+        StateError(run)
 
     pub def mapError(f: String -> String \ ef1, ma: StateError[ka, st, ef, a]): StateError[ka, st, ef + ef1, a] = 
-        StateError((s, k) -> 
-            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef + ef1, a]);
-            match maf(s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => checked_ecast(Err(f(msg)))
-            }
-        )
+        let StateError(g) = ma;
+        def run(s, k) = match g(s, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        StateError(run)
 
     pub def reifyError(ma: StateError[ka, st, ef, a]): StateError[ka, st, ef, Result[String, a]] = 
-        StateError((s, k) -> 
-           let StateError(maf) = ma;
-            match maf(s, (a, s1) -> k(Ok(a), s1)) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg), s)
-            }
-        )
+        let StateError(g) = ma;
+        def run(s, k) = match g(s, (a, s1) -> k(Ok(a), s1)) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg), s)
+        };
+        StateError(run)
 
     pub def orelse(ma: StateError[ka, st, ef1, a], mb: StateError[ka, st, ef2, a]): StateError[ka, st, ef1 + ef2, a] =
-        StateError((s, k) ->
-            let StateError(maf) = unchecked_cast(ma as StateError[ka, st, ef1 + ef2, a]);
-            match maf(s, k) {
-                case Ok(a)  => Ok(a)
-                case Err(_) =>  {
-                    let StateError(mbf) = unchecked_cast(mb as StateError[ka, st, ef1 + ef2, a]);
-                    mbf(s, b -> k(b))
-                }
-            }
-        )
+        let StateError(g) = ma;
+        let StateError(h) = mb;
+        def run(s, k) = match g(s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(_)   => h(s, k)
+        };
+        StateError(run)
 
 
     pub def update(f: s -> s \ ef1): StateError[ka, s, ef + ef1, Unit] = 
-        StateError((s, k) -> 
-            k((), f(s))
-        )
-    
-    // Pure (true) or polymorphic `ef` ?
-    pub def put(st: s): StateError[ka, s, Pure, Unit] = 
-        StateError((_, k) -> 
-            k((), st)
-        )
+        def run(s, k) = k((), f(s));
+        StateError(run)
 
     // Pure (true) or polymorphic `ef` ?
-    pub def get(): StateError[ka, s, Pure, s] = 
-        StateError((s, k) -> 
-            k(s, s)
-        )
+    pub def put(st: s): StateError[ka, s, ef, Unit] = 
+        def run(_, k) = k((), st);
+        StateError(run)
+
+    // Pure (true) or polymorphic `ef` ?
+    pub def get(): StateError[ka, s, ef, s] = 
+        def run(s, k) = k(s, s);
+        StateError(run)
 
     pub def gets(proj: s -> a \ ef1): StateError[ka, s, ef + ef1, a] = 
-        StateError((s, k) -> 
-            k(proj(s), s)
-        )
+        def run(s, k) = k(proj(s), s);
+        StateError(run)
 
 }

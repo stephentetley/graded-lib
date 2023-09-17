@@ -58,7 +58,8 @@ mod Graded.Codensity {
         unchecked_cast(f(cont) as _ \ ef)
 
     pub def point(x: a): Codensity[ka, ef, a] = 
-        Codensity(k -> k(x))
+        def run(k) = k(x);
+        Codensity(run)
 
     pub def map(f: a -> b \ ef, ma: Codensity[ka, ef1, a]): Codensity[ka, ef1 + ef, b] =
         let Codensity(g) = ma;

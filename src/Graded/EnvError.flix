@@ -89,7 +89,8 @@ mod Graded.EnvError {
 
 
     pub def point(x: a): EnvError[ka, env, ef, a] = 
-        EnvError((_, k) -> k(x))
+        def run(_, k) = k(x);
+        EnvError(run)
 
     pub def map(f: a -> b \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, b] =
         let EnvError(g) = ma;
@@ -108,7 +109,8 @@ mod Graded.EnvError {
         EnvError(run)
 
     pub def throwError(msg: String): EnvError[ka, env, ef, a] = 
-        EnvError((_, _) -> checked_ecast(Err(msg)))
+        def run(_, _) = checked_ecast(Err(msg));
+        EnvError(run)
 
     pub def catchError(ma: EnvError[ka, env, ef, a], 
                         hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef + ef1 + ef2, a] = 
@@ -129,7 +131,7 @@ mod Graded.EnvError {
         EnvError(run)
 
     pub def reifyError(ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef, Result[String, a]] = 
-       let EnvError(g) = ma;
+        let EnvError(g) = ma;
         def run(e, k) = match g(e, a -> k(Ok(a))) {
             case Ok(ans)  => Ok(ans)
             case Err(msg) => k(Err(msg))
