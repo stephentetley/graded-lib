@@ -22,8 +22,8 @@ mod Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    pub enum EnvError[ka: Type, env: Type, ef: Eff, a: Type](
-        env -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
+    pub enum EnvError[ka: Type, env: Type, _ef: Eff, a: Type](
+        env -> (a -> Result[String, ka] \ IO) -> Result[String, ka] \ IO)
 
     instance GradedFunctor[EnvError[ka, env]] { 
         pub def map(f: a -> b \ ef1, m: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, b] = 
@@ -85,131 +85,114 @@ mod Graded.EnvError {
     pub def runEnvError(ma: EnvError[a, env, ef, a], e: env): Result[String, a] \ ef =
         let EnvError(f) = ma;
         let cont = a -> checked_ecast(Ok(a));
-        f(e, cont)
+        unchecked_cast(f(e, cont) as _ \ ef)
 
 
     pub def point(x: a): EnvError[ka, env, ef, a] = 
         EnvError((_, k) -> k(x))
 
     pub def map(f: a -> b \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, b] =
-        EnvError((e, k) ->
-            let EnvError(maf) = unchecked_cast(ma as EnvError[ka, env, ef + ef1, a]);
-            maf(e, a -> k(f(a)))
-        )
+        let EnvError(g) = ma;
+        def run(e, k) = g(e, a -> k(f(a)));
+        EnvError(run)
 
     pub def ap(mf: EnvError[ka, env, ef1, a -> b \ ef2], ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1 + ef2, b] =
-        EnvError((e, k) ->
-            let EnvError(mff) = unchecked_cast(mf as EnvError[ka, env, ef + ef1 + ef2, a -> b \ ef2]);
-            let EnvError(maf) = unchecked_cast(ma as EnvError[ka, env, ef + ef1 + ef2, a]);
-            mff(e, f ->
-                maf(e, a ->
-                    k(f(a))))
-        )
-
+        let EnvError(g) = mf;
+        let EnvError(h) = ma;
+        def run(e, k) = g(e, f1 -> h(e, a -> k(f1(a))));
+        EnvError(run)
 
     pub def flatMap(f: a -> EnvError[ka, env, ef1, b] \ ef2, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1 + ef2, b] =
-        EnvError((e, k) ->
-            let EnvError(maf) = unchecked_cast(ma as EnvError[ka, env, ef + ef1 + ef2, a]);
-            maf(e, a ->
-                let EnvError(faf) = unchecked_cast(f(a) as EnvError[ka, env, ef + ef1 + ef2, b]);
-                faf(e, b ->
-                    k(b)))
-        )
+        let EnvError(g) = ma;
+        def run(e, k) = g(e, a -> {let EnvError(h) = f(a); h(e, k)});
+        EnvError(run)
 
     pub def throwError(msg: String): EnvError[ka, env, ef, a] = 
         EnvError((_, _) -> checked_ecast(Err(msg)))
 
     pub def catchError(ma: EnvError[ka, env, ef, a], 
                         hdlr: String -> EnvError[ka, env, ef1, a] \ ef2): EnvError[ka, env, ef + ef1 + ef2, a] = 
-        EnvError((e, k) -> 
-            let EnvError(maf) = unchecked_cast(ma as EnvError[ka, env, ef + ef1 + ef2, a]);
-            match maf(e, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let EnvError(hdlrf) = unchecked_cast(hdlr(msg) as EnvError[ka, env, ef + ef1 + ef2, a]); 
-                    hdlrf(e, k)
-                }
-            }
-        )
+        let EnvError(g) = ma;
+        def run(e, k) = match g(e, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let EnvError(h) = hdlr(msg); h(e, k)}
+        };
+        EnvError(run)
+
 
     pub def mapError(f: String -> String \ ef1, ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef + ef1, a] = 
-        EnvError((e, k) -> 
-            let EnvError(maf) = unchecked_cast(ma as EnvError[ka, env, ef + ef1, a]);
-            match maf(e, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => checked_ecast(Err(f(msg)))
-            }
-        )
+        let EnvError(g) = ma;
+        def run(e, k) = match g(e, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        EnvError(run)
 
     pub def reifyError(ma: EnvError[ka, env, ef, a]): EnvError[ka, env, ef, Result[String, a]] = 
-        EnvError((e, k) -> 
-            let EnvError(maf) = ma;
-            match maf(e, a -> k(Ok(a))) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg))
-            }
-        )
+       let EnvError(g) = ma;
+        def run(e, k) = match g(e, a -> k(Ok(a))) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg))
+        };
+        EnvError(run)
 
     pub def empty(): EnvError[ka, env, ef, a] = throwError("empty")
 
     pub def orelse(ma: EnvError[ka, env, ef1, a], mb: EnvError[ka, env, ef2, a]): EnvError[ka, env, ef1 + ef2, a] =
-        EnvError((e, k) ->
-            let EnvError(maf) = unchecked_cast(ma as EnvError[ka, env, ef1 + ef2, a]);
-            match maf(e, k) {
-                case Ok(a)  => Ok(a)
-                case Err(_) =>  {
-                    let EnvError(mbf) = unchecked_cast(mb as EnvError[ka, env, ef1 + ef2, a]);
-                    mbf(e, b -> k(b))
-                }
-            }
-        )
+        let EnvError(g) = ma;
+        let EnvError(h) = mb;
+        def run(e, k) = match g(e, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(_)   => h(e, k)
+        };
+        EnvError(run)
 
     pub def liftGetter(f: env -> a \ ef): EnvError[ka, env, ef, a]= 
-        EnvError((e, k) ->
-            try {
-                let ans = f(e);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }
-        )
+        def run(e, k) = try {
+            let ans = f(e);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        EnvError(run)
+    
 
     // f should not throw an exception
     pub def liftGetterResult(f: env -> Result[e, a] \ ef): EnvError[ka, env, ef, a] with ToString[e] = 
-        EnvError((e, k) ->
-            match f(e) { 
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(e, k) =  match f(e) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        EnvError(run)
 
     pub def liftAction(f: Unit -> a \ ef): EnvError[ka, env, ef, a] = 
-        EnvError((_, k) ->
+        def run(_, k) = {
             let a = f(); 
             k(a)  
-        )
+        };
+        EnvError(run)
 
     pub def liftActionResult(f: Unit -> Result[e, a] \ ef): EnvError[ka, env, ef, a] with ToString[e] = 
-        EnvError((_, k) ->
-            match f() {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(_, k) = match f() {
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        EnvError(run)
 
     pub def ask(): EnvError[ka, env, ef, env] = 
-        EnvError((e, k) -> k(e))
+        def run(e, k) = k(e);
+        EnvError(run)
 
     pub def asks(f: env -> a \ ef1): EnvError[ka, env, ef + ef1, a] = 
-        EnvError((e, k) -> k(f(e)))
+        def run(e, k) = k(f(e));
+        EnvError(run)
 
     pub def local(f: env -> env1 \ ef1, ma: EnvError[ka, env1, ef, a]): EnvError[ka, env, ef + ef1, a] = 
-        EnvError((e, k) -> 
-            let EnvError(maf) = unchecked_cast(ma as EnvError[ka, env1, ef + ef1, a]);
-            maf(f(e), k)
-        )
+        let EnvError(g) = ma;
+        def run(e, k) = g(f(e), k);
+        EnvError(run)
 
 
 }
