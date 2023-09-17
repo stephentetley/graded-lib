@@ -22,8 +22,8 @@ mod Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    pub enum CodensityError[ka: Type, ef: Eff, a: Type](
-        (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
+    pub enum CodensityError[ka: Type, _ef: Eff, a: Type](
+        (a -> Result[String, ka] \ IO) -> Result[String, ka] \ IO)
 
     instance GradedFunctor[CodensityError[ka]] { 
         pub def map(f: a -> b \ ef1, m: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1, b] = 
@@ -84,94 +84,78 @@ mod Graded.CodensityError {
     pub def runCodensityError(ma: CodensityError[a, ef, a]): Result[String, a] \ ef =
         let CodensityError(f) = ma;
         let cont = a -> checked_ecast(Ok(a));
-        f(cont)
+        unchecked_cast(f(cont) as _ \ ef)
 
 
     pub def point(x: a): CodensityError[ka, ef, a] = 
         CodensityError(k -> k(x))
 
     pub def map(f: a -> b \ ef1, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1, b] =
-        CodensityError(k ->
-            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1, a]);
-            maf(a -> k(f(a)))
-        )
+        let CodensityError(g) = ma;
+        def run(k) = g(a -> k(f(a)));
+        CodensityError(run)
 
     pub def ap(mf: CodensityError[ka, ef1, a -> b \ ef2], ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1 + ef2, b] =
-        CodensityError(k ->
-            let CodensityError(mff) = unchecked_cast(mf as CodensityError[ka, ef + ef1 + ef2, a -> b \ ef2]);
-            mff(f ->
-                let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1 + ef2, a]);
-                maf(a -> k(f(a)))
-            )
-        )
-
+        let CodensityError(g) = mf;
+        let CodensityError(h) = ma;
+        def run(k) = g(f1 -> h(a -> k(f1(a))));
+        CodensityError(run)
 
     pub def flatMap(f: a -> CodensityError[ka, ef1, b] \ ef2, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1 + ef2, b] =
-        CodensityError(k ->
-            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1 + ef2, a]);
-            maf(a ->
-                let CodensityError(faf) = unchecked_cast(f(a) as CodensityError[ka, ef + ef1 + ef2, b]);
-                faf(b ->k(b))
-            )
-        )
+        let CodensityError(g) = ma;
+        def run(k) = g(a -> {let CodensityError(h) = f(a); h(k)});
+        CodensityError(run)
 
     pub def throwError(msg: String): CodensityError[ka, ef, a] = 
         CodensityError(_ -> checked_ecast(Err(msg)))
 
     pub def catchError(ma: CodensityError[ka, ef, a], 
                         hdlr: String -> CodensityError[ka, ef1, a] \ ef2): CodensityError[ka, ef + ef1 + ef2, a] = 
-        CodensityError(k -> 
-            let CodensityError(ma1) = unchecked_cast(ma as CodensityError[ka, ef + ef1 + ef2, a]);
-            match ma1(k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let CodensityError(hdlr1) = unchecked_cast(hdlr(msg) as CodensityError[ka, ef + ef1 + ef2, a]); 
-                    hdlr1(k)
-                }
-            }
-        )
+        let CodensityError(g) = ma;
+        def run(k) = match g(k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let CodensityError(h) = hdlr(msg); h(k)}
+        };
+        CodensityError(run)
+
 
     pub def mapError(f: String -> String \ ef1, ma: CodensityError[ka, ef, a]): CodensityError[ka, ef + ef1, a] = 
-        CodensityError(k -> 
-            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef + ef1, a]);
-            match maf(k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => Err(f(msg))
-            }
-        )
+        let CodensityError(g) = ma;
+        def run(k) = match g(k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        CodensityError(run)
 
 
     pub def reifyError(ma: CodensityError[ka, ef, a]): CodensityError[ka, ef, Result[String, a]] = 
-        CodensityError(k -> 
-            let CodensityError(maf) = ma;
-            match maf(a -> k(Ok(a))) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg))
-            }
-        )
-
+        let CodensityError(g) = ma;
+        def run(k) = match g(a -> k(Ok(a))) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg))
+        };
+        CodensityError(run)
 
     pub def empty(): CodensityError[ka, ef, a] = throwError("empty")
 
     pub def orelse(ma: CodensityError[ka, ef1, a], mb: CodensityError[ka, ef2, a]): CodensityError[ka, ef1 + ef2, a] =
-        CodensityError(k ->
-            let CodensityError(maf) = unchecked_cast(ma as CodensityError[ka, ef1 + ef2, a]);
-            match maf(k) {
-                case Ok(a)  => Ok(a)
-                case Err(_) => { 
-                    let CodensityError(mbf) = unchecked_cast(mb as CodensityError[ka, ef1 + ef2, a]);
-                    mbf(b -> k(b))
-                }
-            }
-        )
+        let CodensityError(g) = ma;
+        let CodensityError(h) = mb;
+        def run(k) = match g(k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(_)   => h(k)
+        };
+        CodensityError(run)
+
 
     pub def liftEffect(f: Unit -> a \ ef): CodensityError[ka, ef, a] = 
         CodensityError(k -> k(f()))
 
     pub def liftEffectResult(f: Unit -> Result[String, a] \ ef): CodensityError[ka, ef, a] = 
-        CodensityError(k -> match f() { 
+        def run(k) = match f() { 
             case Ok(a)    => k(a)
             case Err(msg) => Err(msg)
-        })
+        };
+        CodensityError(run)
 
 }

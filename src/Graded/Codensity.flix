@@ -62,15 +62,18 @@ mod Graded.Codensity {
 
     pub def map(f: a -> b \ ef, ma: Codensity[ka, ef1, a]): Codensity[ka, ef1 + ef, b] =
         let Codensity(g) = ma;
-        def run(k) = g(a -> {let b = unchecked_cast(f(a) as _ \ IO); k(b)});
+        def run(k) = g(a -> k(f(a)));
         Codensity(run)
 
     pub def ap(mf: Codensity[ka, ef1, a -> b \ ef2], ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
-        flatMap(f -> flatMap(a -> point(f(a)), ma), mf)
+        let Codensity(g) = mf;
+        let Codensity(h) = ma;
+        def run(k) = g(f1 -> h(a -> k(f1(a))));
+        Codensity(run)
 
     pub def flatMap(f: a -> Codensity[ka, ef1, b] \ ef2, ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
         let Codensity(g) = ma;
-        def run(k) = g(a -> {let Codensity(h) = unchecked_cast(f(a) as _ \ IO); h(b -> k(b))});
+        def run(k) = g(a -> {let Codensity(h) = f(a); h(k)});
         Codensity(run)
 
     pub def liftEffect(f: Unit -> a \ ef): Codensity[ka, ef, a] = 
