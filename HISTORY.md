@@ -1,3 +1,6 @@
+### v0.8.0
+   **cast bug**
+
 ### v0.7.0
    Inlined and eliminated `apply...` functions.
    Added `when...` family of functions.

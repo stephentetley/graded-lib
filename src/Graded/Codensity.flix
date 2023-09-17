@@ -19,8 +19,8 @@ mod Graded {
     ///
     /// Just a Codensity monad graded with an effect
     ///
-    pub enum Codensity[ka: Type, ef: Eff, a: Type](
-        (a -> ka \ ef) -> ka \ ef)
+    pub enum Codensity[ka: Type, _ef: Eff, a: Type](
+        (a -> ka \ IO) -> ka \ IO)
 
     instance GradedFunctor[Codensity[ka]] { 
         pub def map(f: a -> b \ ef1, m: Codensity[ka, ef, a]): Codensity[ka, ef + ef1, b] = 
@@ -54,33 +54,26 @@ mod Graded.Codensity {
     ///
     pub def runCodensity(ma: Codensity[a, ef, a]): a \ ef =
         let Codensity(f) = ma;
-        let cont = a -> checked_ecast(a);
-        f(cont)
+        let cont = a -> unchecked_cast(a as _ \ IO);
+        unchecked_cast(f(cont) as _ \ ef)
 
     pub def point(x: a): Codensity[ka, ef, a] = 
         Codensity(k -> k(x))
 
     pub def map(f: a -> b \ ef, ma: Codensity[ka, ef1, a]): Codensity[ka, ef1 + ef, b] =
-        Codensity(k ->
-            let Codensity(maf) = unchecked_cast(ma as Codensity[ka, ef1 + ef, a]);
-            maf(a -> {let b = f(a); k(b)})
-        )
+        let Codensity(g) = ma;
+        def run(k) = g(a -> {let b = unchecked_cast(f(a) as _ \ IO); k(b)});
+        Codensity(run)
 
     pub def ap(mf: Codensity[ka, ef1, a -> b \ ef2], ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
-        Codensity(k ->
-            let Codensity(mff) = unchecked_cast(mf as Codensity[ka, ef + ef1 + ef2, a -> b \ ef2]);
-            mff(f ->
-                let Codensity(maf) = unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]);
-                maf(a -> k(f(a))))
-        )
+        flatMap(f -> flatMap(a -> point(f(a)), ma), mf)
 
     pub def flatMap(f: a -> Codensity[ka, ef1, b] \ ef2, ma: Codensity[ka, ef, a]): Codensity[ka, ef + ef1 + ef2, b] =
-        Codensity(k ->
-            let Codensity(maf) = unchecked_cast(ma as Codensity[ka, ef + ef1 + ef2, a]);
-            maf(a ->
-                let Codensity(faf) = unchecked_cast(f(a) as Codensity[ka, ef + ef1 + ef2, b]);
-                faf(b -> k(b)))
-        )
+        let Codensity(g) = ma;
+        def run(k) = g(a -> {let Codensity(h) = unchecked_cast(f(a) as _ \ IO); h(b -> k(b))});
+        Codensity(run)
 
+    pub def liftEffect(f: Unit -> a \ ef): Codensity[ka, ef, a] = 
+        Codensity(k -> k(f()))
 
 }
