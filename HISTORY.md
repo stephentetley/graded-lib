@@ -1,5 +1,5 @@
 ### v0.8.0
-   **cast bug**
+   Rewrote all graded monads to use IO internally to avoid a casting bug that cause runtime failure.
 
 ### v0.7.0
    Inlined and eliminated `apply...` functions.

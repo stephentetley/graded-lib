@@ -15,7 +15,7 @@ that can be used directly or wrapped with an `enum` newtype.
 
 Monads are written in CPS to be stack safe.
 
-Note - 7 August 2023 - `graded-lib` is currently broken for Flix version 0.38.0 and higher. 
-This is due to the use of unchecked casts and causes runtime not compile time failures. 
+Note - 18 September 2023. All the monads have been rewritten to minimize casting (casting had 
+been causing a runtime crash). Version 0.8.0 has not been widely tested.
 
 License: Apache 2.0
