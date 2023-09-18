@@ -26,8 +26,8 @@ mod Graded {
     /// Ideally st would be st: Region -> Type with r: Region but this currently causes a compiler
     /// crash (Flix issue #2113)
     /// 
-    pub enum MutStateError[ka: Type, st: Type, ef: Eff, a: Type](
-        st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
+    pub enum MutStateError[ka: Type, st: Type, _ef: Eff, a: Type](
+        st -> (a -> Result[String, ka] \ IO) -> Result[String, ka] \ IO
     )
 
     instance GradedFunctor[MutStateError[ka, st]] { 
@@ -89,132 +89,117 @@ mod Graded.MutStateError {
                                 vs: st): Result[String, a] \ ef =
         let MutStateError(f) = ma;
         let cont = ans -> checked_ecast(Ok(ans));
-        f(vs, cont)
+        unchecked_cast(f(vs, cont) as _ \ ef)
 
 
     pub def point(x: a): MutStateError[ka, st, ef, a] = 
-        MutStateError((_, k) -> k(x))
+        def run(_, k) = k(x);
+        MutStateError(run)
 
 
     pub def map(f: a -> b \ ef, ma: MutStateError[ka, st, ef1, a]): MutStateError[ka, st, ef + ef1, b] =
-        MutStateError((vs, k) ->
-            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]);
-            maf(vs, a -> k(f(a)))
-        )
+        let MutStateError(g) = ma;
+        def run(s, k) = g(s, a -> k(f(a)));
+        MutStateError(run)
 
     pub def ap(mf: MutStateError[ka, st, ef1, a -> b \ ef2], ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1 + ef2, b] =
-        MutStateError((vs, k) ->
-            let MutStateError(mff) = unchecked_cast(mf as MutStateError[ka, st, ef + ef1 + ef2, a -> b \ ef2]);
-            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]);
-            mff(vs, f ->
-                maf(vs, a ->
-                    k(f(a))))
-        )
+        let MutStateError(g) = mf;
+        let MutStateError(h) = ma;
+        def run(s, k) = g(s, f1 -> h(s, a -> k(f1(a))));
+        MutStateError(run)
 
 
     pub def flatMap(f: a -> MutStateError[ka, st, ef1, b] \ ef, ma: MutStateError[ka, st, ef2, a]): MutStateError[ka, st, ef + ef1 + ef2, b] =
-        MutStateError((vs, k) ->
-            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]);
-            maf(vs, a ->
-                let MutStateError(faf) = unchecked_cast(f(a) as MutStateError[ka, st, ef + ef1 + ef2, b]);
-                faf(vs, b ->
-                    k(b)))
-        )
+        let MutStateError(g) = ma;
+        def run(s, k) = g(s, a -> {let MutStateError(h) = f(a); h(s, k)});
+        MutStateError(run)
 
 
     pub def empty(): MutStateError[ka, st, ef, a] = 
         throwError("empty")
 
     pub def throwError(msg: String): MutStateError[ka, st, ef, a] = 
-        MutStateError((_, _) -> checked_ecast(Err(msg)))
+        def run(_, _) = checked_ecast(Err(msg));
+        MutStateError(run)
 
-    pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1, a] = 
-        MutStateError((vs, k) -> 
-            let MutStateError(maf) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1, a]);
-            match maf(vs, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => checked_ecast(Err(f(msg)))
-            }
-        )
     pub def catchError(ma: MutStateError[ka, st, ef, a], 
                         hdlr: String -> MutStateError[ka, st, ef1, a] \ ef2): MutStateError[ka, st, ef + ef1 + ef2, a] = 
-        MutStateError((vs, k) -> 
-            let MutStateError(ma1) = unchecked_cast(ma as MutStateError[ka, st, ef + ef1 + ef2, a]);
-            match ma1(vs, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let MutStateError(hdlr1) = unchecked_cast(hdlr(msg) as MutStateError[ka, st, ef + ef1 + ef2, a]); 
-                    hdlr1(vs, k)
-                }
-            }
-        )
+        let MutStateError(g) = ma;
+        def run(s, k) = match g(s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let MutStateError(h) = hdlr(msg); h(s, k)}
+        };
+        MutStateError(run)
+
+    pub def mapError(f: String -> String \ ef1, ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef + ef1, a] = 
+        let MutStateError(g) = ma;
+        def run(s, k) = match g(s, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        MutStateError(run)
     
     pub def reifyError(ma: MutStateError[ka, st, ef, a]): MutStateError[ka, st, ef, Result[String, a]] = 
-        MutStateError((vs, k) -> 
-            let MutStateError(maf) = ma;
-            match maf(vs, a -> k(Ok(a))) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg))
-            }
-        )
+        let MutStateError(g) = ma;
+        def run(s, k) = match g(s, a -> k(Ok(a))) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg))
+        };
+        MutStateError(run)
 
 
     /// ideally something like > Err(liftApp(@ \ ef, getMessage, ex)) 
     pub def liftGetter(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
-        MutStateError((vs, k) ->
-            try {
-                let ans = f(vs);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }            
-        )
+        def run(s, k) = try {
+            let ans = f(s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        MutStateError(run)
 
     // f should not throw an exception
     pub def liftGetterResult(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
-        MutStateError((vs, k) ->
-            match f(vs) { 
-                case Ok(a)  => k(a)
-                case Err(e) => Err(ToString.toString(e))
-            } 
-        )
+        def run(e, k) =  match f(e) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        MutStateError(run)
 
     pub def liftSetter!(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
-        MutStateError((vs, k) ->
-            try {
-                let a = f(vs); 
-                k(a)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }            
-        )
+        def run (s, k) = try {
+            let a = f(s); 
+            k(a)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        MutStateError(run)
 
     // f should not throw an exception
     pub def liftSetterResult!(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
-        MutStateError((vs, k) ->
-            match f(vs) {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(s, k) = match f(s) {
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        MutStateError(run)
 
 
     pub def liftAction(f: Unit -> a \ ef): MutStateError[ka, st, ef, a] = 
-        MutStateError((_, k) ->
+        def run(_, k) = {
             let a = f();
             k(a)
-        )
+        };
+        MutStateError(run)
 
     pub def liftActionResult(f: Unit -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
-        MutStateError((_, k) ->
-            match f() {
-                case Ok(a)  => k(a)
-                case Err(e) => Err(ToString.toString(e))
-            }
-        )
+        def run(_, k) = match f() {
+            case Ok(a)  => k(a)
+            case Err(e) => Err(ToString.toString(e))
+        };
+        MutStateError(run)
 
 }

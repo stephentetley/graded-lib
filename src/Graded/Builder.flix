@@ -143,7 +143,7 @@ mod Graded.Builder {
     
     pub def reifyError(ma: Builder[ka, st, ef, a]): Builder[ka, st, ef, Result[String, a]] = 
         let Builder(g) = ma;
-        def run(e, k) = match g(e, a -> k(Ok(a))) {
+        def run(s, k) = match g(s, a -> k(Ok(a))) {
             case Ok(ans)  => Ok(ans)
             case Err(msg) => k(Err(msg))
         };
