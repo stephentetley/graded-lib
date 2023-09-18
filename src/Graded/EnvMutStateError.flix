@@ -23,8 +23,8 @@ mod Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    pub enum EnvMutStateError[ka: Type, env: Type, st: Type, ef: Eff, a: Type](
-        env -> st -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
+    pub enum EnvMutStateError[ka: Type, env: Type, st: Type, _ef: Eff, a: Type](
+        env -> st -> (a -> Result[String, ka] \ IO) -> Result[String, ka] \ IO)
 
 
     instance GradedFunctor[EnvMutStateError[ka, env, st]] { 
@@ -84,142 +84,128 @@ mod Graded.EnvMutStateError {
                                 vs: st): Result[String, a] \ ef =
         let EnvMutStateError(f) = ma;
         let cont = a -> checked_ecast(Ok(a));
-        f(e, vs, cont)
+        unchecked_cast(f(e, vs, cont) as _ \ ef)
 
 
     pub def point(x: a): EnvMutStateError[ka, env, ef, st, a] = 
-        EnvMutStateError((_, _, k) -> k(x))
+        def run(_, _, k) = k(x);
+        EnvMutStateError(run)
 
     pub def map(f: a -> b \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1, b] =
-        EnvMutStateError((e, vs, k) ->
-            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1, a]);
-            maf(e, vs, a -> k(f(a)))
-        )
+        let EnvMutStateError(g) = ma;
+        def run(e, s, k) = g(e, s, a -> k(f(a)));
+        EnvMutStateError(run)
 
     pub def ap(mf: EnvMutStateError[ka, env, st, ef1, a -> b \ ef2], 
                 ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1 + ef2, b] =
-        EnvMutStateError((e, vs, k) ->
-            let EnvMutStateError(mff) = unchecked_cast(mf as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a -> b \ ef2]);
-            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]);
-            mff(e, vs, f ->
-                maf(e, vs, a ->
-                    k(f(a))))
-        )
+        let EnvMutStateError(g) = mf;
+        let EnvMutStateError(h) = ma;
+        def run(e, s, k) = g(e, s, f1 -> h(e, s, a -> k(f1(a))));
+        EnvMutStateError(run)
 
 
     pub def flatMap(f: a -> EnvMutStateError[ka, env, st, ef1, b] \ ef2, 
                     ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1 + ef2, b] =
-        EnvMutStateError((e, vs, k) ->
-            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]);
-            maf(e, vs, a ->
-                let EnvMutStateError(faf) = unchecked_cast(f(a) as EnvMutStateError[ka, env, st, ef + ef1 + ef2, b]);
-                faf(e, vs, b ->
-                    k(b)))
-        )
+        let EnvMutStateError(g) = ma;
+        def run(e, s, k) = g(e, s, a -> {let EnvMutStateError(h) = f(a); h(e, s, k)});
+        EnvMutStateError(run)
 
     pub def throwError(msg: String): EnvMutStateError[ka, env, st, ef, a] = 
-        EnvMutStateError((_, _, _) -> checked_ecast(Err(msg)))
+        def run(_, _, _) = checked_ecast(Err(msg));
+        EnvMutStateError(run)
 
 
     pub def catchError(ma: EnvMutStateError[ka, env, st, ef, a], 
                         hdlr: String -> EnvMutStateError[ka, env, st, ef1, a] \ ef2): EnvMutStateError[ka, env, st, ef + ef1 + ef2, a] = 
-        EnvMutStateError((e, vs, k) -> 
-            let EnvMutStateError(ma1) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]);
-            match ma1(e, vs, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let EnvMutStateError(hdlr1) = unchecked_cast(hdlr(msg) as EnvMutStateError[ka, env, st, ef + ef1 + ef2, a]); 
-                    hdlr1(e, vs, k)
-                }
-            }
-        )
+        let EnvMutStateError(g) = ma;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let EnvMutStateError(h) = hdlr(msg); h(e, s, k)}
+        };
+        EnvMutStateError(run)
 
 
     pub def mapError(f: String -> String \ ef1, ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1, a] = 
-        EnvMutStateError((e, vs, k) -> 
-            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env, st, ef + ef1, a]);
-            match maf(e, vs, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => checked_ecast(Err(f(msg)))
-            }
-        )
+        let EnvMutStateError(g) = ma;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        EnvMutStateError(run)
    
 
     pub def reifyError(ma: EnvMutStateError[ka, env, st, ef, a]): EnvMutStateError[ka, env, st, ef, Result[String, a]] = 
-        EnvMutStateError((e, vs, k) -> 
-            let EnvMutStateError(maf) = ma;
-            match maf(e, vs, a -> k(Ok(a))) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg))
-            }
-        )
+        let EnvMutStateError(g) = ma;
+        def run(e, s, k) = match g(e, s, a -> k(Ok(a))) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg))
+        };
+        EnvMutStateError(run)
 
     pub def liftGetter(f: env -> st -> a \ ef): EnvMutStateError[ka, env, st, ef, a] = 
-        EnvMutStateError((e, s, k) ->
-            try {
-                let ans = f(e, s);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }
-        )
+        def run(e, s, k) = try {
+            let ans = f(e, s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        EnvMutStateError(run)
 
     // f should not throw an exception
     pub def liftGetterResult(f: env -> st -> Result[e, a] \ ef): EnvMutStateError[ka, env, st, ef, a] with ToString[e] = 
-        EnvMutStateError((e, s, k) ->
-            match f(e, s) { 
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(e, s, k) =  match f(e, s) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        EnvMutStateError(run)
 
     pub def liftSetter!(f: env -> st -> a \ ef): EnvMutStateError[ka, env, st, ef, a] = 
-        EnvMutStateError((e, s, k) ->
-            try {
-                let a = f(e, s); 
-                k(a)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }            
-        )
+        def run(e, s, k) = try {
+            let a = f(e, s); 
+            k(a)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        EnvMutStateError(run)
+
 
     // f should not throw an exception
     pub def liftSetterResult!(f: env -> st -> Result[e, a] \ ef): EnvMutStateError[ka, env, st, ef, a] with ToString[e] = 
-        EnvMutStateError((e, s, k) ->
-            match f(e, s) {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(e, s, k) = match f(e, s) {
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        EnvMutStateError(run)
 
     pub def liftAction(f: Unit -> a \ ef): EnvMutStateError[ka, env, st, ef, a] = 
-        EnvMutStateError((_, _, k) ->
-            let a = f(); 
-            k(a)  
-        )
+        def run(_, _, k) = {
+            let a = f();
+            k(a)
+        };
+        EnvMutStateError(run)
 
     pub def liftActionResult(f: Unit -> Result[e, a] \ ef): EnvMutStateError[ka, env, st, ef, a] with ToString[e] = 
-        EnvMutStateError((_, _, k) ->
-            match f() {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(_, _, k) = match f() {
+            case Ok(a)  => k(a)
+            case Err(e) => Err(ToString.toString(e))
+        };
+        EnvMutStateError(run)
 
     pub def ask(): EnvMutStateError[ka, env, st, ef, env]  = 
-        EnvMutStateError((e, _, k) -> checked_ecast(k(e)))
+        def run(e, _, k) = k(e);
+        EnvMutStateError(run)
 
     pub def asks(f: env -> a \ ef1): EnvMutStateError[ka, env, st, ef + ef1, a]  = 
-        EnvMutStateError((e, _, k) -> k(f(e)))
+        def run(e, _, k) = k(f(e));
+        EnvMutStateError(run)
 
     pub def local(f: env -> env1 \ ef1, ma: EnvMutStateError[ka, env1, st, ef, a]): EnvMutStateError[ka, env, st, ef + ef1, a] = 
-        EnvMutStateError((e, vs, k) -> 
-            let EnvMutStateError(maf) = unchecked_cast(ma as EnvMutStateError[ka, env1, st, ef + ef1, a]);
-            maf(f(e), vs, k)
-        )
+        let EnvMutStateError(g) = ma;
+        def run (e, vs, k) = g(f(e), vs, k);
+        EnvMutStateError(run)
 
 }

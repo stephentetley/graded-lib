@@ -162,14 +162,14 @@ mod Graded.MutStateError {
 
     // f should not throw an exception
     pub def liftGetterResult(f: st -> Result[e, a] \ ef): MutStateError[ka, st, ef, a] with ToString[e] = 
-        def run(e, k) =  match f(e) { 
+        def run(s, k) =  match f(s) { 
             case Ok(a)    => k(a)
             case Err(err) => Err(ToString.toString(err))
         };
         MutStateError(run)
 
     pub def liftSetter!(f: st -> a \ ef): MutStateError[ka, st, ef, a] = 
-        def run (s, k) = try {
+        def run(s, k) = try {
             let a = f(s); 
             k(a)
         } catch {
@@ -186,7 +186,6 @@ mod Graded.MutStateError {
             case Err(err) => Err(ToString.toString(err))
         };
         MutStateError(run)
-
 
     pub def liftAction(f: Unit -> a \ ef): MutStateError[ka, st, ef, a] = 
         def run(_, k) = {
