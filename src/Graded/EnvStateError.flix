@@ -21,8 +21,8 @@ mod Graded {
     /// 
     /// `ka` is the continuation answer type
     ///
-    pub enum EnvStateError[ka: Type, env: Type, st: Type, ef: Eff, a: Type](
-        env -> st -> (a -> st -> Result[String, ka] \ ef) -> Result[String, ka] \ ef)
+    pub enum EnvStateError[ka: Type, env: Type, st: Type, _ef: Eff, a: Type](
+        env -> st -> (a -> st -> Result[String, ka] \ IO) -> Result[String, ka] \ IO)
 
     instance GradedFunctor[EnvStateError[ka, env, st]] { 
         pub def map(f: a -> b \ ef1, m: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef + ef1, b] = 
@@ -80,120 +80,97 @@ mod Graded.EnvStateError {
     pub def runEnvStateError(ma: EnvStateError[(s, a), env, s, ef, a], e: env, st: s): Result[String, (s, a)] \ ef =
         let EnvStateError(f) = ma;
         let cont = (a, s1) -> checked_ecast (Ok(s1, a));
-        f(e, st, cont)
+        unchecked_cast(f(e, st, cont) as _ \ ef)
 
     pub def point(x: a): EnvStateError[ka, env, st, ef, a] = 
-        EnvStateError((_, s, k) -> k(x, s))
+        def run(_, s, k) = k(x, s);
+        EnvStateError(run)
 
     pub def map(f: a -> b \ ef1, ma: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef + ef1, b] =
-        EnvStateError((e, s, k) ->
-            let EnvStateError(maf) = unchecked_cast(ma as EnvStateError[ka, env, st, ef + ef1, a]);
-            maf(e, s, (a, s1) -> k(f(a), s1))
-        )
+        let EnvStateError(g) = ma;
+        def run(e, s, k) = g(e, s, (a, s1) -> k(f(a), s1));
+        EnvStateError(run)
 
     pub def ap(mf: EnvStateError[ka, env, st, ef1, a -> b \ ef2], ma: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef + ef1 + ef2, b] =
-        EnvStateError((e, s, k) ->
-            let EnvStateError(mff) = unchecked_cast(mf as EnvStateError[ka, env, st, ef + ef1 + ef2, a -> b \ ef2]);
-            let EnvStateError(maf) = unchecked_cast(ma as EnvStateError[ka, env, st, ef + ef1 + ef2, a]);
-            mff(e, s, (f, s1) ->
-                maf(e, s1, (a, s2) ->
-                    k(f(a), s2)))
-        )
+        let EnvStateError(g) = mf;
+        let EnvStateError(h) = ma;
+        def run(e, s, k) = g(e, s, (f1, s1) -> h(e, s1, (a, s2) -> k(f1(a), s2)));
+        EnvStateError(run)
 
     pub def flatMap(f: a -> EnvStateError[ka, env, st, ef1, b] \ ef2, ma: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef + ef1 + ef2, b] =
-        EnvStateError((e, s, k) ->
-            let EnvStateError(maf) = unchecked_cast(ma as EnvStateError[ka, env, st, ef + ef1 + ef2, a]);
-            maf(e, s, (a, s1) ->
-                let EnvStateError(faf) = unchecked_cast(f(a) as EnvStateError[ka, env, st, ef + ef1 + ef2, b]);
-                faf(e, s1, (b, s2) ->
-                    k(b, s2)))
-        )
+        let EnvStateError(g) = ma;
+        def run(e, s, k) = g(e, s, (a, s1) -> {let EnvStateError(h) = f(a); h(e, s1, k)});
+        EnvStateError(run)
 
     pub def throwError(msg: String): EnvStateError[ka, env, s, ef, a] = 
-        EnvStateError((_, _, _) -> checked_ecast(Err(msg)))
+        def run(_, _, _) = checked_ecast(Err(msg));
+        EnvStateError(run)
 
     pub def catchError(ma: EnvStateError[ka, env, st, ef, a], 
                         hdlr: String -> EnvStateError[ka, env, st, ef1, a] \ ef2): EnvStateError[ka, env, st, ef + ef1 + ef2, a] = 
-        EnvStateError((e, s, k) -> 
-            let EnvStateError(maf) = unchecked_cast(ma as EnvStateError[ka, env, st, ef + ef1 + ef2, a]);
-            match maf(e, s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let EnvStateError(hdlrf) = unchecked_cast(hdlr(msg) as EnvStateError[ka, env, st, ef + ef1 + ef2, a]); 
-                    hdlrf(e, s, k)
-                }
-            }
-        )
+        let EnvStateError(g) = ma;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let EnvStateError(h) = hdlr(msg); h(e, s, k)}
+        };
+        EnvStateError(run)
 
     pub def mapError(f: String -> String \ ef1, ma: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef + ef1, a] = 
-        EnvStateError((e, s, k) -> 
-            let EnvStateError(maf) = unchecked_cast(ma as EnvStateError[ka, env, st, ef + ef1, a]);
-            match maf(e, s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => checked_ecast(Err(f(msg)))
-            }
-        )
+        let EnvStateError(g) = ma;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        EnvStateError(run)
 
     pub def reifyError(ma: EnvStateError[ka, env, st, ef, a]): EnvStateError[ka, env, st, ef, Result[String, a]] = 
-        EnvStateError((e, s, k) -> 
-            let EnvStateError(maf) = ma;
-            match maf(e, s, (a, s1) -> k(Ok(a), s1)) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg), s)
-            }
-        )
+        let EnvStateError(g) = ma;
+        def run(e, s, k) = match g(e, s, (a, s1) -> k(Ok(a), s1)) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg), s)
+        };
+        EnvStateError(run)
 
     pub def orelse(ma: EnvStateError[ka, env, st, ef1, a], mb: EnvStateError[ka, env, st, ef2, a]): EnvStateError[ka, env, st, ef1 + ef2, a] =
-        EnvStateError((e, s, k) ->
-            let EnvStateError(maf) = unchecked_cast(ma as EnvStateError[ka, env, st, ef1 + ef2, a]);
-            match maf(e, s, k) {
-                case Ok(a)  => Ok(a)
-                case Err(_) =>  {
-                    let EnvStateError(mbf) = unchecked_cast(mb as EnvStateError[ka, env, st, ef1 + ef2, a]);
-                    mbf(e, s, b -> k(b))
-                }
-            }
-        )
-
-
+        let EnvStateError(g) = ma;
+        let EnvStateError(h) = mb;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(_)   => h(e, s, k)
+        };
+        EnvStateError(run)
 
 
     pub def update(f: st -> st \ ef1): EnvStateError[ka, env, st, ef + ef1, Unit] = 
-        EnvStateError((_, s, k) -> 
-            k((), f(s))
-        )
+        def run(_, s, k) = k((), f(s));
+        EnvStateError(run)
 
 
     pub def put(s: st): EnvStateError[ka, env, st, ef, Unit] = 
-        EnvStateError((_, _, k) -> 
-            k((), s)
-        )
+        def run(_, _, k) = k((), s);
+        EnvStateError(run)
 
     // polymorphic `ef`...
     pub def get(): EnvStateError[ka, env, st, ef, st] = 
-        EnvStateError((_, s, k) -> 
-            k(s, s)
-        )
+        def run(_, s, k) = k(s, s);
+        EnvStateError(run)
 
     
     pub def gets(proj: st -> a \ ef1): EnvStateError[ka, env, st, ef + ef1, a] = 
-        EnvStateError((_, s, k) -> 
-            k(proj(s), s)
-        )
+        def run(_, s, k) = k(proj(s), s);
+        EnvStateError(run)
 
     pub def ask(): EnvStateError[ka, env, st, ef, env] = 
-        EnvStateError((e, s, k) -> 
-            k(e, s)
-        )
+        def run(e, s, k) = k(e, s);
+        EnvStateError(run)
 
     pub def asks(proj: env -> a \ ef1): EnvStateError[ka, env, st, ef + ef1, a] = 
-        EnvStateError((e, s, k) -> 
-            k(proj(e), s)
-        )
+        def run(e, s, k) = k(proj(e), s);
+        EnvStateError(run)
 
     pub def local(f: env -> env1 \ ef1, ma: EnvStateError[ka, env1, st, ef, a]): EnvStateError[ka, env, st, ef + ef1, a] = 
-        EnvStateError((e, s, k) -> 
-            let EnvStateError(maf) = unchecked_cast(ma as EnvStateError[ka, env1, st, ef + ef1, a]);
-            maf(f(e), s, k)
-        )
+        let EnvStateError(g) = ma;
+        def run(e, s, k) = g(f(e), s, k);
+        EnvStateError(run)
+
 }
