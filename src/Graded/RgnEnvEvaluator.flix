@@ -20,8 +20,8 @@ mod Graded {
     ///
     /// Version of `EnvEvaluator` with region capabilities
     ///    
-    pub enum RgnEnvEvaluator[ka: Type, r: Region, env: Type, vs: Type, ef: Eff, a: Type](
-        Region[r] -> env -> vs -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
+    pub enum RgnEnvEvaluator[ka: Type, r: Region, env: Type, vs: Type, _ef: Eff, a: Type](
+        Region[r] -> env -> vs -> (a -> Result[String, ka] \ IO) -> Result[String, ka] \ IO
     )
 
 
@@ -85,17 +85,15 @@ mod Graded.RgnEnvEvaluator {
     /// Returns the result of applying `ma` to the state `s`.
     ///
     pub def localRgn(rc: Region[r], ma: RgnEnvEvaluator[a, r, env, vs, ef, a]): EnvEvaluator[a, env, vs, ef, a] \ r =
-        unchecked_cast(EnvEvaluator((e, s, k) -> 
-            let RgnEnvEvaluator(f) = ma;
-            f(rc, e, s, k)
-        ) as EnvEvaluator[a, env, vs, ef, a] \ r)
+        let RgnEnvEvaluator(g) = ma;
+        def run(e, s, k) = g(rc, e, s, k);
+        checked_ecast(EnvEvaluator(run))
 
 
     pub def liftEnvEvaluator(ma: EnvEvaluator[ka, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef, a] =
-        RgnEnvEvaluator((_, e, s, k) -> 
-            let EnvEvaluator(f) = ma;
-            f(e, s, k)
-        )
+        let EnvEvaluator(g) = ma;
+        def run(_, e, s, k) = g(e, s, k);
+        RgnEnvEvaluator(run)
 
     ///
     /// Returns the result of applying `ma` to the state `s`.
@@ -103,193 +101,172 @@ mod Graded.RgnEnvEvaluator {
     pub def runRgnEnvEvaluator(ma: RgnEnvEvaluator[a, r, env, vs, ef, a], rc: Region[r], e: env, s: vs): Result[String, a] \ ef =
         let RgnEnvEvaluator(f) = ma;
         let cont = a -> checked_ecast(Ok(a));
-        f(rc, e, s, cont)
+        unchecked_cast(f(rc, e, s, cont) as _ \ ef)
 
 
     pub def point(x: a): RgnEnvEvaluator[ka, r, env, vs, ef, a] = 
-        RgnEnvEvaluator((_, _, _, k) -> k(x))
-
+        def run(_, _, _, k) = k(x);
+        RgnEnvEvaluator(run)
 
     pub def map(f: a -> b \ ef1, ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1, b] =
-        RgnEnvEvaluator((rc, e, s, k) ->
-            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a]);
-            maf(rc, e, s, a -> k(f(a)))
-        )
+        let RgnEnvEvaluator(g) = ma;
+        def run(rc, e, s, k) = g(rc, e, s, a -> k(f(a)));
+        RgnEnvEvaluator(run)
 
     pub def ap(mf: RgnEnvEvaluator[ka, r, env, vs, ef1, a -> b \ ef2], 
                 ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, b] =
-        RgnEnvEvaluator((rc, e, s, k) ->
-            let RgnEnvEvaluator(mff) = unchecked_cast(mf as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a -> b \ ef2]);
-            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]);
-            mff(rc, e, s, f ->
-                maf(rc, e, s, a ->
-                    k(f(a))))
-        )
+        let RgnEnvEvaluator(g) = mf;
+        let RgnEnvEvaluator(h) = ma;
+        def run(rc, e, s, k) = g(rc, e, s, f -> h(rc, e, s, a -> k(f(a))));
+        RgnEnvEvaluator(run)
 
 
     pub def flatMap(f: a -> RgnEnvEvaluator[ka, r, env, vs, ef1, b] \ ef2, 
                     ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, b] =
-        RgnEnvEvaluator((rc, e, s, k) ->
-            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]);
-            maf(rc, e, s, a ->
-                let RgnEnvEvaluator(faf) = unchecked_cast(f(a) as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, b]);
-                faf(rc, e, s, b ->
-                    k(b)))
-        )
+        let RgnEnvEvaluator(g) = ma;
+        def run(rc, e, s, k) = g(rc, e, s, a -> {let RgnEnvEvaluator(h) = f(a); h(rc, e, s, k)});
+        RgnEnvEvaluator(run)
 
     pub def throwError(msg: String): RgnEnvEvaluator[ka, r, env, vs, ef, a] = 
-        RgnEnvEvaluator((_, _, _, _) -> checked_ecast(Err(msg)))
+        def run(_, _, _, _) = checked_ecast(Err(msg));
+        RgnEnvEvaluator(run)
 
     pub def catchError(ma: RgnEnvEvaluator[ka, r, env, vs, ef, a], 
                         hdlr: String -> RgnEnvEvaluator[ka, r, env, vs, ef1, a] \ ef2): RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a] = 
-        RgnEnvEvaluator((rc, e, s, k) -> 
-            let RgnEnvEvaluator(ma1) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]);
-            match ma1(rc, e, s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let RgnEnvEvaluator(hdlr1) = unchecked_cast(hdlr(msg) as RgnEnvEvaluator[ka, r, env, vs, ef + ef1 + ef2, a]); 
-                    hdlr1(rc, e, s, k)
-                }
-            }
-        )
+        let RgnEnvEvaluator(g) = ma;
+        def run(rc, e, s, k) = match g(rc, e, s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let RgnEnvEvaluator(h) = hdlr(msg); h(rc, e, s, k)}
+        };
+        RgnEnvEvaluator(run)
 
     pub def mapError(f: String -> String \ ef1, ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a] = 
-        RgnEnvEvaluator((rc, e, s, k) -> 
-            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a]);
-            match maf(rc, e, s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => checked_ecast(Err(f(msg)))
-            }
-        )
+        let RgnEnvEvaluator(g) = ma;
+        def run(rc, e, s, k) = match g(rc, e, s, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        RgnEnvEvaluator(run)
 
     pub def reifyError(ma: RgnEnvEvaluator[ka, r, env, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef, Result[String, a]] = 
-        RgnEnvEvaluator((rc, e, s, k) -> 
-            let RgnEnvEvaluator(maf) = ma;
-            match maf(rc, e, s, a -> k(Ok(a))) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg))
-            }
-        )
+        let RgnEnvEvaluator(g) = ma;
+        def run(rc, e, s, k) = match g(rc, e, s, a -> k(Ok(a))) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg))
+        };
+        RgnEnvEvaluator(run)
 
     pub def empty(): RgnEnvEvaluator[ka, r, env, vs, ef, a] = throwError("empty")
 
     pub def orelse(ma: RgnEnvEvaluator[ka, r, env, vs, ef1, a], mb: RgnEnvEvaluator[ka, r, env, vs, ef2, a]): RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a] =
-        RgnEnvEvaluator((rc, e, s, k) ->
-            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a]);
-            match maf(rc, e, s, k) {
-                case Ok(a)  => Ok(a)
-                case Err(_) =>  {
-                    let RgnEnvEvaluator(mbf) = unchecked_cast(mb as RgnEnvEvaluator[ka, r, env, vs, ef1 + ef2, a]);
-                    mbf(rc, e, s, b -> k(b))
-                }
-            }
-        )
+        let RgnEnvEvaluator(g) = ma;
+        let RgnEnvEvaluator(h) = mb;
+        def run(rc, e, s, k) = match g(rc, e, s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(_)   => h(rc, e, s, k)
+        };
+        RgnEnvEvaluator(run)
 
 
     pub def liftGetter(f: vs -> a \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a]= 
-        RgnEnvEvaluator((_, _, s, k) ->
-            try {
-                let ans = f(s);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }
-        )
+        def run(_, _, s, k) = try {
+            let ans = f(s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        RgnEnvEvaluator(run)
 
     pub def liftGetterWithEnv(f: env -> vs -> a \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a]= 
-        RgnEnvEvaluator((_, e, s, k) ->
-            try {
-                let ans = f(e, s);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }
-        )
+        def run(_, e, s, k) = try {
+            let ans = f(e, s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        RgnEnvEvaluator(run)
 
 
     pub def liftGetterWithRgn(f: Region[r] -> vs -> a \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a]= 
-        RgnEnvEvaluator((rc, _, s, k) ->
-            try {
-                let ans = f(rc, s);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }
-        )
+        def run(rc, _, s, k) = try {
+            let ans = f(rc, s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        RgnEnvEvaluator(run)
 
     // f should not throw an exception
     pub def liftGetterResult(f: vs -> Result[s, a] \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] with ToString[s] = 
-        RgnEnvEvaluator((_, _, s, k) ->
-            match f(s) { 
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(_, _, s, k) =  match f(s) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        RgnEnvEvaluator(run)
 
     // f should not throw an exception
     pub def liftGetterResultWithEnv(f: env -> vs -> Result[s, a] \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] with ToString[s] = 
-        RgnEnvEvaluator((_, e, s, k) ->
-            match f(e, s) { 
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(_, e, s, k) =  match f(e, s) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        RgnEnvEvaluator(run)
 
     // f should not throw an exception
     pub def liftGetterResultWithRgn(f: Region[r] -> vs -> Result[err, a] \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] with ToString[err] = 
-        RgnEnvEvaluator((rc, _, s, k) ->
-            match f(rc, s) { 
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(rc, _, s, k) =  match f(rc, s) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        RgnEnvEvaluator(run)
 
     pub def liftAction(f: Unit -> a \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] = 
-        RgnEnvEvaluator((_, _, _, k) ->
+        def run(_, _, _, k) = {
             let a = f(); 
             k(a)  
-        )
+        };
+        RgnEnvEvaluator(run)
 
 
     pub def liftActionWithRgn(f: Region[r] -> a \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] = 
-        RgnEnvEvaluator((rc, _, _, k) ->
+        def run(rc, _, _, k) = {
             let a = f(rc); 
             k(a)  
-        )
+        };
+        RgnEnvEvaluator(run)
 
     pub def liftActionResult(f: Unit -> Result[s, a] \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] with ToString[s] = 
-        RgnEnvEvaluator((_, _, _, k) ->
-            match f() {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(_, _, _, k) = match f() {
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        RgnEnvEvaluator(run)
 
     pub def liftActionResultWithRgn(f: Region[r] -> Result[s, a] \ ef): RgnEnvEvaluator[ka, r, env, vs, ef, a] with ToString[s] = 
-        RgnEnvEvaluator((rc, _, _, k) ->
-            match f(rc) {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(rc, _, _, k) = match f(rc) {
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        RgnEnvEvaluator(run)
 
     pub def ask(): RgnEnvEvaluator[ka, r, env, vs, ef, env]  = 
-        RgnEnvEvaluator((_, e, _, k) -> checked_ecast(k(e)))
+        def run(_, e, _, k) = k(e);
+        RgnEnvEvaluator(run)
 
     pub def asks(f: env -> a \ ef1): RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a]  = 
-        RgnEnvEvaluator((_, e, _, k) -> k(f(e)))
+        def run(_, e, _, k) = k(f(e));
+        RgnEnvEvaluator(run)
 
     pub def local(f: env -> env1 \ ef1, ma: RgnEnvEvaluator[ka, r, env1, vs, ef, a]): RgnEnvEvaluator[ka, r, env, vs, ef + ef1, a] = 
-        RgnEnvEvaluator((rc, e, s, k) -> 
-            let RgnEnvEvaluator(maf) = unchecked_cast(ma as RgnEnvEvaluator[ka, r, env1, vs, ef + ef1, a]);
-            maf(rc, f(e), s, k)
-        )
+        let RgnEnvEvaluator(g) = ma;
+        def run(rc, e, s, k) = g(rc, f(e), s, k);
+        RgnEnvEvaluator(run)
 
 
 }

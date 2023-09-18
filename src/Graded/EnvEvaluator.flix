@@ -28,8 +28,8 @@ mod Graded {
     /// Ideally `vs` would be vs: Region -> Type with r: Region but this currently causes 
     /// a compiler crash (Flix issue #2113)
     ///    
-    pub enum EnvEvaluator[ka: Type, env: Type, vs: Type, ef: Eff, a: Type](
-        env -> vs -> (a -> Result[String, ka] \ ef) -> Result[String, ka] \ ef
+    pub enum EnvEvaluator[ka: Type, env: Type, vs: Type, _ef: Eff, a: Type](
+        env -> vs -> (a -> Result[String, ka] \ IO) -> Result[String, ka] \ IO
     )
 
 
@@ -92,157 +92,137 @@ mod Graded.EnvEvaluator {
     pub def runEnvEvaluator(ma: EnvEvaluator[a, env, vs, ef, a], e: env, s: vs): Result[String, a] \ ef =
         let EnvEvaluator(f) = ma;
         let cont = a -> checked_ecast(Ok(a));
-        f(e, s, cont)
+        unchecked_cast(f(e, s, cont) as _ \ ef)
 
 
     pub def point(x: a): EnvEvaluator[ka, env, vs, ef, a] = 
-        EnvEvaluator((_, _, k) -> k(x))
+        def run(_, _, k) = k(x);
+        EnvEvaluator(run)
 
 
     pub def map(f: a -> b \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, b] =
-        EnvEvaluator((e, s, k) ->
-            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]);
-            maf(e, s, a -> k(f(a)))
-        )
+        let EnvEvaluator(g) = ma;
+        def run(e, s, k) = g(e, s, a -> k(f(a)));
+        EnvEvaluator(run)
 
     pub def ap(mf: EnvEvaluator[ka, env, vs, ef1, a -> b \ ef2], 
                 ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] =
-        EnvEvaluator((e, s, k) ->
-            let EnvEvaluator(mff) = unchecked_cast(mf as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a -> b \ ef2]);
-            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
-            mff(e, s, f ->
-                maf(e, s, a ->
-                    k(f(a))))
-        )
-
+        let EnvEvaluator(g) = mf;
+        let EnvEvaluator(h) = ma;
+        def run(e, s, k) = g(e, s, f -> h(e, s, a -> k(f(a))));
+        EnvEvaluator(run)
 
     pub def flatMap(f: a -> EnvEvaluator[ka, env, vs, ef1, b] \ ef2, 
                     ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b] =
-        EnvEvaluator((e, s, k) ->
-            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
-            maf(e, s, a ->
-                let EnvEvaluator(faf) = unchecked_cast(f(a) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, b]);
-                faf(e, s, b ->
-                    k(b)))
-        )
+        let EnvEvaluator(g) = ma;
+        def run(e, s, k) = g(e, s, a -> {let EnvEvaluator(h) = f(a); h(e, s, k)});
+        EnvEvaluator(run)
 
     pub def throwError(msg: String): EnvEvaluator[ka, env, vs, ef, a] = 
-        EnvEvaluator((_, _, _) -> checked_ecast(Err(msg)))
+        def run(_, _, _) = checked_ecast(Err(msg));
+        EnvEvaluator(run)
 
     pub def catchError(ma: EnvEvaluator[ka, env, vs, ef, a], 
                         hdlr: String -> EnvEvaluator[ka, env, vs, ef1, a] \ ef2): EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a] = 
-        EnvEvaluator((e, s, k) -> 
-            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]);
-            match maf(e, s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => { 
-                    let EnvEvaluator(hdlrf) = unchecked_cast(hdlr(msg) as EnvEvaluator[ka, env, vs, ef + ef1 + ef2, a]); 
-                    hdlrf(e, s, k)
-                }
-            }
-        )
+        let EnvEvaluator(g) = ma;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => {let EnvEvaluator(h) = hdlr(msg); h(e, s, k)}
+        };
+        EnvEvaluator(run)
 
     pub def mapError(f: String -> String \ ef1, ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, a] = 
-        EnvEvaluator((e, s, k) -> 
-            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef + ef1, a]);
-            match maf(e, s, k) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => checked_ecast(Err(f(msg)))
-            }
-        )
+        let EnvEvaluator(g) = ma;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(a)    => Ok(a)
+            case Err(msg) => Err(f(msg))
+        };
+        EnvEvaluator(run)
 
     pub def reifyError(ma: EnvEvaluator[ka, env, vs, ef, a]): EnvEvaluator[ka, env, vs, ef, Result[String, a]] = 
-        EnvEvaluator((e, s, k) -> 
-            let EnvEvaluator(maf) = ma;
-            match maf(e, s, a -> k(Ok(a))) {
-                case Ok(a)    => Ok(a)
-                case Err(msg) => k(Err(msg))
-            }
-        )
+        let EnvEvaluator(g) = ma;
+        def run(e, s, k) = match g(e, s, a -> k(Ok(a))) {
+            case Ok(ans)  => Ok(ans)
+            case Err(msg) => k(Err(msg))
+        };
+        EnvEvaluator(run)
 
     pub def empty(): EnvEvaluator[ka, env, vs, ef, a] = throwError("empty")
 
     pub def orelse(ma: EnvEvaluator[ka, env, vs, ef1, a], mb: EnvEvaluator[ka, env, vs, ef2, a]): EnvEvaluator[ka, env, vs, ef1 + ef2, a] =
-        EnvEvaluator((e, s, k) ->
-            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env, vs, ef1 + ef2, a]);
-            match maf(e, s, k) {
-                case Ok(a)  => Ok(a)
-                case Err(_) =>  {
-                    let EnvEvaluator(mbf) = unchecked_cast(mb as EnvEvaluator[ka, env, vs, ef1 + ef2, a]);
-                    mbf(e, s, b -> k(b))
-                }
-            }
-        )
+        let EnvEvaluator(g) = ma;
+        let EnvEvaluator(h) = mb;
+        def run(e, s, k) = match g(e, s, k) {
+            case Ok(ans)  => Ok(ans)
+            case Err(_)   => h(e, s, k)
+        };
+        EnvEvaluator(run)
 
 
     pub def liftGetter(f: vs -> a \ ef): EnvEvaluator[ka, env, vs, ef, a]= 
-        EnvEvaluator((_, s, k) ->
-            try {
-                let ans = f(s);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }
-        )
+        def run(_, s, k) = try {
+            let ans = f(s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        EnvEvaluator(run)
 
     pub def liftGetterWithEnv(f: env -> vs -> a \ ef): EnvEvaluator[ka, env, vs, ef, a]= 
-        EnvEvaluator((e, s, k) ->
-            try {
-                let ans = f(e, s);
-                k(ans)
-            } catch {
-                case ex: ##java.lang.Exception => 
-                    import java.lang.Throwable.getMessage(): String \ {};
-                    Err(getMessage(ex))
-            }
-        )
+        def run(e, s, k) = try {
+            let ans = f(e, s);
+            k(ans)
+        } catch {
+            case ex: ##java.lang.Exception => 
+                import java.lang.Throwable.getMessage(): String \ {};
+                Err(getMessage(ex))
+        };
+        EnvEvaluator(run)
 
     // f should not throw an exception
     pub def liftGetterResult(f: vs -> Result[s, a] \ ef): EnvEvaluator[ka, env, vs, ef, a] with ToString[s] = 
-        EnvEvaluator((_, s, k) ->
-            match f(s) { 
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(_, s, k) =  match f(s) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        EnvEvaluator(run)
 
     // f should not throw an exception
     pub def liftGetterResultWithEnv(f: env -> vs -> Result[s, a] \ ef): EnvEvaluator[ka, env, vs, ef, a] with ToString[s] = 
-        EnvEvaluator((e, s, k) ->
-            match f(e, s) { 
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(e, s, k) =  match f(e, s) { 
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        EnvEvaluator(run)
 
     pub def liftAction(f: Unit -> a \ ef): EnvEvaluator[ka, env, vs, ef, a] = 
-        EnvEvaluator((_, _, k) ->
+        def run(_, _, k) = {
             let a = f(); 
             k(a)  
-        )
+        };
+        EnvEvaluator(run)
 
     pub def liftActionResult(f: Unit -> Result[s, a] \ ef): EnvEvaluator[ka, env, vs, ef, a] with ToString[s] = 
-        EnvEvaluator((_, _, k) ->
-            match f() {
-                case Ok(a)    => k(a)
-                case Err(err) => Err(ToString.toString(err))
-            } 
-        )
+        def run(_, _, k) = match f() {
+            case Ok(a)    => k(a)
+            case Err(err) => Err(ToString.toString(err))
+        };
+        EnvEvaluator(run)
 
 
     pub def ask(): EnvEvaluator[ka, env, vs, ef, env]  = 
-        EnvEvaluator((e, _, k) -> checked_ecast(k(e)))
+        def run(e, _, k) = k(e);
+        EnvEvaluator(run)
 
     pub def asks(f: env -> a \ ef1): EnvEvaluator[ka, env, vs, ef + ef1, a]  = 
-        EnvEvaluator((e, _, k) -> k(f(e)))
+        def run(e, _, k) = k(f(e));
+        EnvEvaluator(run)
 
     pub def local(f: env -> env1 \ ef1, ma: EnvEvaluator[ka, env1, vs, ef, a]): EnvEvaluator[ka, env, vs, ef + ef1, a] = 
-        EnvEvaluator((e, s, k) -> 
-            let EnvEvaluator(maf) = unchecked_cast(ma as EnvEvaluator[ka, env1, vs, ef + ef1, a]);
-            maf(f(e), s, k)
-        )
-
+        let EnvEvaluator(g) = ma;
+        def run(e, s, k) = g(f(e), s, k);
+        EnvEvaluator(run)
 
 }
