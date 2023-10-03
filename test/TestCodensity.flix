@@ -25,11 +25,11 @@ mod TestCodensity {
     @test
     def test05(): Bool \ IO = 
         use GradedApplicative.{*>};
-        runCodensity(Graded.Codensity.liftEffect(_ -> println("No Crash"))) == ()
+        runCodensity(Graded.Codensity.liftAction(_ -> println("No Crash"))) == ()
 
     @test
     def test06(): Bool \ IO = 
         use GradedApplicative.{*>};
-        runCodensity(Graded.Codensity.liftEffect(_ -> println("No Crash")) *> Graded.Codensity.point(5)) == 5
+        runCodensity(Graded.Codensity.liftAction(_ -> println("No Crash")) *> Graded.Codensity.point(5)) == 5
 
 }

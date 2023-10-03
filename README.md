@@ -15,7 +15,7 @@ that can be used directly or wrapped with an `enum` newtype.
 
 Monads are written in CPS to be stack safe.
 
-Note - 18 September 2023. All the monads have been rewritten to minimize casting (casting had 
-been causing a runtime crash). Version 0.8.0 has not been widely tested.
+Note - 03 October 2023. Some casting errors may still remain despite the monads being rewritten
+for V0.8.0.
 
 License: Apache 2.0

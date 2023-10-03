@@ -1,5 +1,8 @@
+### v0.9.0
+   Renamed `liftEffect` to `liftAction` in `CodensityError` and `Codensity`.
+
 ### v0.8.0
-   Rewrote all graded monads to use IO internally to avoid a casting bug that cause runtime failure.
+   Rewrote all graded monads to use `IO` internally to avoid a casting bug that caused runtime failures.
 
 ### v0.7.0
    Inlined and eliminated `apply...` functions.

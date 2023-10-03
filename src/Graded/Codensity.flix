@@ -77,7 +77,7 @@ mod Graded.Codensity {
         def run(k) = g(a -> {let Codensity(h) = f(a); h(k)});
         Codensity(run)
 
-    pub def liftEffect(f: Unit -> a \ ef): Codensity[ka, ef, a] = 
+    pub def liftAction(f: Unit -> a \ ef): Codensity[ka, ef, a] = 
         Codensity(k -> k(f()))
 
 }

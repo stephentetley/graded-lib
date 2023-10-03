@@ -27,7 +27,7 @@ mod TestCodensityError {
     @test
     def test05(): Bool \ IO = 
         use GradedApplicative.{*>};
-        runCodensityError(CodensityError.liftEffect(_ -> println("No Crash"))) == Ok()
+        runCodensityError(CodensityError.liftAction(_ -> println("No Crash"))) == Ok()
 
 
     @test
@@ -36,12 +36,12 @@ mod TestCodensityError {
         runCodensityError(CodensityError.mapError(_ -> "Bad", CodensityError.throwError("Crash") *> point(5))) == Err("Bad")
 
     // pub def output(msg: String): CodensityError[ka, IO, Unit] = 
-    //     CodensityError.liftEffect(_ -> println(msg))
+    //     CodensityError.liftAction(_ -> println(msg))
 
     // @test
     // def test06(): Bool \ IO = 
     //     use GradedApplicative.{*>};
-    //     runCodensityError(CodensityError.liftEffect(_ -> println("No Crash")) *> Graded.CodensityError.point(5)) == Ok(5)
+    //     runCodensityError(CodensityError.liftAction(_ -> println("No Crash")) *> Graded.CodensityError.point(5)) == Ok(5)
 
 
     // /// Fix an effect in a graded monad - get a regular monad (well we would if IOError was an enum...).
@@ -56,7 +56,7 @@ mod TestCodensityError {
     //     runCodensityError(ma)
 
     // pub def output(msg: String): IOError[ka, Unit] = 
-    //     CodensityError.liftEffect(_ -> println(msg))
+    //     CodensityError.liftAction(_ -> println(msg))
 
 
     // @test

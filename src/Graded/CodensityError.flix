@@ -150,11 +150,11 @@ mod Graded.CodensityError {
         CodensityError(run)
 
 
-    pub def liftEffect(f: Unit -> a \ ef): CodensityError[ka, ef, a] = 
+    pub def liftAction(f: Unit -> a \ ef): CodensityError[ka, ef, a] = 
         def run(k) = k(f());
         CodensityError(run)
 
-    pub def liftEffectResult(f: Unit -> Result[String, a] \ ef): CodensityError[ka, ef, a] = 
+    pub def liftActionResult(f: Unit -> Result[String, a] \ ef): CodensityError[ka, ef, a] = 
         def run(k) = match f() { 
             case Ok(a)    => k(a)
             case Err(msg) => Err(msg)
